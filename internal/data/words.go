@@ -92,11 +92,15 @@ func (g *Generator) GenerateWords(count int, difficulty string) string {
 
 // GenerateByTime generates text that should take approximately the specified duration
 func (g *Generator) GenerateByTime(seconds int, difficulty string) string {
-	// Estimate: average 40 WPM for medium difficulty
-	// That's ~200 characters per minute or ~3.33 characters per second
-	estimatedWords := (seconds * 200) / 60 / 5 // 5 chars per word average
-	if estimatedWords < 10 {
-		estimatedWords = 10
+	// Generate enough words so it's nearly impossible to finish in the given time
+	// Assume very fast typing: 120 WPM (professional level)
+	// 120 WPM = 600 characters per minute = 10 characters per second
+	// Add 50% buffer to ensure there's always more text than needed
+	estimatedWords := ((seconds * 120) / 60) + ((seconds * 120) / 60 / 2)
+	
+	// Minimum 100 words for any timed test
+	if estimatedWords < 100 {
+		estimatedWords = 100
 	}
 
 	return g.GenerateWords(estimatedWords, difficulty)
