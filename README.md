@@ -2,7 +2,6 @@
 
 <div align="center">
 
-````markdown
 # Keyarch ⌨️
 
 <div align="center">
@@ -165,72 +164,13 @@ GitHub: [@vinayydv3695](https://github.com/vinayydv3695)
 </div>
 ````
 
-**A minimal, beautiful typing test for your terminal**
+<div align="center">
 
-Built with Go • BubbleTea • Lipgloss
+**Made with ❤️ and ⌨️**
 
-[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://golang.org)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+GitHub: [@vinayydv3695](https://github.com/vinayydv3695)
 
 </div>
-
----
-
-## ✨ Features
-
-### 🎯 Core Features
-- **Multiple Test Modes**
-  - ⏱️  **Timer Mode**: 15s, 30s, 60s, 120s
-  - 📝 **Word Mode**: 25, 50, 100 words
-  - 💭 **Quote Mode**: Inspirational and anime quotes
-  - 💻 **Code Mode**: Practice typing code in Go, JS, Python, Rust
-
-- **Real-Time Statistics**
-  - Words Per Minute (WPM)
-  - Characters Per Minute (CPM)
-  - Accuracy percentage
-  - Mistake counter
-  - Live progress tracking
-
-- **After-Test Analysis**
-  - Detailed performance summary
-  - Weak key identification
-  - Character-by-character accuracy
-  - Performance feedback
-
-### 🎨 **10 Built-in Themes**
-- Catppuccin Mocha (default)
-- Nord
-- Dracula
-- Gruvbox Dark
-- Rose Pine
-- Tokyo Night
-- One Dark
-- Monokai
-- Solarized Dark
-- Material Dark
-
-- **Syntax Highlighting**
-  - ✅ Green for correct characters
-  - ❌ Red for mistakes
-  - 📍 Yellow cursor indicator
-  - 🔘 Muted pending characters
-
-### 📊 Statistics & Progress
-- Total tests completed
-- Best WPM record
-- Average WPM
-- Accuracy tracking
-- Daily streak counter
-- 7-day performance graph
-- Weak keys analysis
-
-### 💾 Local Storage
-- SQLite database
-- Persistent statistics
-- Test history
-- Performance trends
-- All data stored in `~/.keyarch/`
 
 ---
 
