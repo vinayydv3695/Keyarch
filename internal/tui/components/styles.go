@@ -184,10 +184,26 @@ func Header(title, subtitle string, styles *Styles) string {
 ░  ░      ░  ░░ ░           ░  ░   ░     ░ ░       ░  ░  ░
               ░ ░                        ░                `
 
-	header := styles.Title.Foreground(styles.Theme.Primary).Render(logo) + "\n\n"
-	header += styles.RenderTitle(title) + "\n"
+	logoStyle := lipgloss.NewStyle().
+		Foreground(styles.Theme.Primary).
+		Bold(true)
+
+	header := logoStyle.Render(logo) + "\n\n"
+	
+	// Title with gradient-like effect
+	titleStyle := lipgloss.NewStyle().
+		Foreground(styles.Theme.Accent).
+		Bold(true).
+		Padding(0, 2)
+	
+	header += titleStyle.Render("━━━ "+title+" ━━━") + "\n"
+	
 	if subtitle != "" {
-		header += styles.RenderSubtitle(subtitle) + "\n"
+		subtitleStyle := lipgloss.NewStyle().
+			Foreground(styles.Theme.Secondary).
+			Italic(true).
+			Padding(0, 2)
+		header += subtitleStyle.Render(subtitle) + "\n"
 	}
 
 	return header
@@ -195,5 +211,11 @@ func Header(title, subtitle string, styles *Styles) string {
 
 // Footer renders help text at the bottom
 func Footer(helpText string, styles *Styles) string {
-	return "\n" + styles.RenderHelp(helpText)
+	footerStyle := lipgloss.NewStyle().
+		Foreground(styles.Theme.Muted).
+		Background(styles.Theme.Border).
+		Padding(0, 2).
+		MarginTop(1)
+	
+	return footerStyle.Render("💡 " + helpText)
 }
