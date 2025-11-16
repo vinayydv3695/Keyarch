@@ -20,6 +20,7 @@ var menuItems = []menuItem{
 	{"Quote Mode", "Type inspiring quotes"},
 	{"Code Mode", "Practice programming"},
 	{"Statistics", "View your progress"},
+	{"Progress", "Goals & Achievements"},
 	{"Themes", "Change color theme"},
 	{"Quit", "Exit Keyarch"},
 }

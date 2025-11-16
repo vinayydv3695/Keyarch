@@ -6,21 +6,26 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/vinayydv3695/keyarch/internal/achievements"
 	"github.com/vinayydv3695/keyarch/internal/config"
 	"github.com/vinayydv3695/keyarch/internal/engine"
+	"github.com/vinayydv3695/keyarch/internal/goals"
 	"github.com/vinayydv3695/keyarch/internal/storage"
 	"github.com/vinayydv3695/keyarch/internal/tui/components"
 )
 
 type Model struct {
-	engine   *engine.Engine
-	styles   *components.Styles
-	cfg      *config.Config
-	db       *storage.DB
-	width    int
-	height   int
-	saved    bool
-	done     bool
+	engine              *engine.Engine
+	styles              *components.Styles
+	cfg                 *config.Config
+	db                  *storage.DB
+	width               int
+	height              int
+	saved               bool
+	done                bool
+	newAchievements     []achievements.Achievement
+	completedGoals      []goals.Goal
+	achievementsChecked bool
 }
 
 func New(eng *engine.Engine, cfg *config.Config, db *storage.DB) Model {
@@ -57,6 +62,13 @@ func (m Model) saveResult() tea.Msg {
 
 	m.db.SaveResult(result)
 	m.saved = true
+
+	// Update goals after saving result
+	m.updateGoals()
+
+	// Check for new achievements
+	m.checkAchievements()
+
 	return nil
 }
 
@@ -84,6 +96,172 @@ func (m Model) countCorrect() int {
 		}
 	}
 	return correct
+}
+
+func (m *Model) updateGoals() {
+	if m.db == nil {
+		return
+	}
+
+	// Load current goal records from database
+	currentRecords, err := m.db.GetGoals()
+	if err != nil {
+		return
+	}
+
+	// Get all goal templates
+	allDailyGoals := goals.DefaultDailyGoals()
+	allWeeklyGoals := goals.DefaultWeeklyGoals()
+	allGoalTemplates := append(allDailyGoals, allWeeklyGoals...)
+
+	// Initialize with defaults if no goals exist
+	if len(currentRecords) == 0 {
+		for _, g := range allDailyGoals {
+			record := goals.ToRecord(g)
+			m.db.SaveGoal(record)
+		}
+
+		for _, g := range allWeeklyGoals {
+			record := goals.ToRecord(g)
+			m.db.SaveGoal(record)
+		}
+
+		// Reload after initialization
+		currentRecords, _ = m.db.GetGoals()
+	}
+
+	// Convert records to goals and update progress
+	for i := range currentRecords {
+		record := &currentRecords[i]
+		goal := goals.FromRecord(*record, allGoalTemplates)
+
+		// Check if goal needs to be reset
+		if goals.ShouldResetGoal(&goal) {
+			if goal.Type == "daily" {
+				goal = goals.ResetDailyGoal(&goal)
+			} else if goal.Type == "weekly" {
+				goal = goals.ResetWeeklyGoal(&goal)
+			}
+		}
+
+		// Update progress based on this test
+		updated := false
+		switch {
+		case goal.ID == "daily_tests_5" || goal.ID == "weekly_tests_25":
+			goal.Current++
+			updated = true
+
+		case goal.ID == "daily_wpm_50":
+			wpm := m.engine.GetWPM()
+			if wpm > goal.Current {
+				goal.Current = wpm
+				updated = true
+			}
+
+		case goal.ID == "daily_accuracy_95":
+			accuracy := m.engine.GetAccuracy()
+			if accuracy > goal.Current {
+				goal.Current = accuracy
+				updated = true
+			}
+
+		case goal.ID == "weekly_time_30":
+			duration := int(m.engine.GetElapsedTime())
+			goal.Current += float64(duration) / 60.0 // Add minutes
+			updated = true
+
+		case goal.ID == "weekly_streak_7":
+			// Streak is calculated separately based on dates
+			updated = true
+		}
+
+		// Check if goal is completed
+		if goal.Current >= goal.Target && !goal.Completed {
+			goal.Completed = true
+			m.completedGoals = append(m.completedGoals, goal)
+		}
+
+		// Save updated goal
+		if updated {
+			updatedRecord := goals.ToRecord(goal)
+			m.db.SaveGoal(updatedRecord)
+		}
+	}
+}
+
+func (m *Model) checkAchievements() {
+	if m.db == nil || m.achievementsChecked {
+		return
+	}
+	m.achievementsChecked = true
+
+	// Get all achievements
+	allAchievements := achievements.AllAchievements()
+
+	// Get already unlocked achievements
+	unlocked, err := m.db.GetUnlockedAchievements()
+	if err != nil {
+		return
+	}
+
+	// Create a map of unlocked achievement IDs
+	unlockedMap := make(map[string]bool)
+	for _, achievementID := range unlocked {
+		unlockedMap[achievementID] = true
+	}
+
+	// Get current stats for checking
+	stats, err := m.db.GetStats()
+	if err != nil {
+		return
+	}
+
+	// Get mode stats
+	modeStats, err := m.db.GetModeStats()
+	if err != nil {
+		modeStats = make(map[string]int)
+	}
+
+	// Convert stats to map for achievement checking
+	statsMap := make(map[string]interface{})
+	statsMap["best_wpm"] = stats.BestWPM
+	statsMap["average_wpm"] = stats.AverageWPM
+	statsMap["best_accuracy"] = stats.BestAccuracy
+	statsMap["average_accuracy"] = stats.AverageAccuracy
+	statsMap["total_tests"] = stats.TotalTests
+	statsMap["total_time"] = stats.TotalTime
+	statsMap["current_streak"] = stats.CurrentStreak
+
+	// Add mode-specific stats
+	statsMap["code_tests"] = modeStats["code"]
+	statsMap["quote_tests"] = modeStats["quote"]
+	
+	// Count unique modes completed
+	modesCompleted := 0
+	for _, count := range modeStats {
+		if count > 0 {
+			modesCompleted++
+		}
+	}
+	statsMap["modes_completed"] = modesCompleted
+
+	// Check each achievement
+	for _, ach := range allAchievements {
+		// Skip if already unlocked
+		if unlockedMap[ach.ID] {
+			continue
+		}
+
+		// Check if this achievement should be unlocked
+		shouldUnlock, _ := achievements.CheckAchievement(ach, statsMap)
+		if shouldUnlock {
+			// Unlock the achievement
+			m.db.SaveAchievement(ach.ID)
+
+			// Add to new achievements list
+			m.newAchievements = append(m.newAchievements, ach)
+		}
+	}
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -135,6 +313,27 @@ func (m Model) View() string {
 
 	s += m.styles.RenderBox(mainStats)
 	s += "\n"
+
+	// New achievements unlocked
+	if len(m.newAchievements) > 0 {
+		achievementInfo := m.styles.Title.Render("🎉 New Achievements Unlocked!") + "\n\n"
+		for _, ach := range m.newAchievements {
+			achievementInfo += fmt.Sprintf("  %s %s\n", ach.Icon, m.styles.Accent.Render(ach.Name))
+			achievementInfo += fmt.Sprintf("     %s\n", m.styles.Muted.Render(ach.Description))
+		}
+		s += m.styles.RenderBox(achievementInfo)
+		s += "\n"
+	}
+
+	// Completed goals
+	if len(m.completedGoals) > 0 {
+		goalInfo := m.styles.Title.Render("✅ Goals Completed!") + "\n\n"
+		for _, goal := range m.completedGoals {
+			goalInfo += fmt.Sprintf("  %s %s\n", "🎯", m.styles.Accent.Render(goal.Name))
+		}
+		s += m.styles.RenderBox(goalInfo)
+		s += "\n"
+	}
 
 	// Weak keys
 	weakKeys := m.engine.GetWeakKeys(5)

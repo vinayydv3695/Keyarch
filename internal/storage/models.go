@@ -36,3 +36,20 @@ type UserStats struct {
 	CurrentStreak   int       `json:"current_streak"`
 	LastTestDate    time.Time `json:"last_test_date"`
 }
+
+// AchievementRecord represents an unlocked achievement
+type AchievementRecord struct {
+	ID         string    `json:"id"`
+	UnlockedAt time.Time `json:"unlocked_at"`
+}
+
+// GoalRecord represents a goal and its progress
+type GoalRecord struct {
+	ID        string    `json:"id"`
+	Type      string    `json:"type"`
+	Target    float64   `json:"target"`
+	Current   float64   `json:"current"`
+	Completed bool      `json:"completed"`
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+}

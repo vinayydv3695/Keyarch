@@ -14,6 +14,7 @@ import (
 	"github.com/vinayydv3695/keyarch/internal/tui/duration"
 	"github.com/vinayydv3695/keyarch/internal/tui/home"
 	"github.com/vinayydv3695/keyarch/internal/tui/language"
+	"github.com/vinayydv3695/keyarch/internal/tui/progress"
 	"github.com/vinayydv3695/keyarch/internal/tui/stats"
 	"github.com/vinayydv3695/keyarch/internal/tui/summary"
 	"github.com/vinayydv3695/keyarch/internal/tui/test"
@@ -181,6 +182,11 @@ func (a *App) Run() error {
 				return err
 			}
 
+		case "progress":
+			if err := a.runProgress(); err != nil {
+				return err
+			}
+
 		case "themes":
 			if err := a.runThemes(); err != nil {
 				return err
@@ -219,6 +225,8 @@ func (a *App) runHome() error {
 		a.state = "code"
 	case "Statistics":
 		a.state = "stats"
+	case "Progress":
+		a.state = "progress"
 	case "Themes":
 		a.state = "themes"
 	case "Quit", "quit":
@@ -360,6 +368,22 @@ func (a *App) runStats() error {
 
 	statsModel := finalModel.(stats.Model)
 	if statsModel.Done() {
+		a.state = "home"
+	}
+
+	return nil
+}
+
+func (a *App) runProgress() error {
+	m := progress.New(a.cfg, a.db)
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	finalModel, err := p.Run()
+	if err != nil {
+		return err
+	}
+
+	progressModel := finalModel.(progress.Model)
+	if progressModel.Selected() == "back" {
 		a.state = "home"
 	}
 

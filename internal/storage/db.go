@@ -68,6 +68,21 @@ func (db *DB) initialize() error {
 		FOREIGN KEY (test_id) REFERENCES test_results(id) ON DELETE CASCADE
 	);
 
+	CREATE TABLE IF NOT EXISTS achievements (
+		id TEXT PRIMARY KEY,
+		unlocked_at DATETIME NOT NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS goals (
+		id TEXT PRIMARY KEY,
+		type TEXT NOT NULL,
+		target INTEGER NOT NULL,
+		current INTEGER NOT NULL,
+		completed BOOLEAN DEFAULT 0,
+		start_date DATETIME NOT NULL,
+		end_date DATETIME NOT NULL
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_created_at ON test_results(created_at);
 	CREATE INDEX IF NOT EXISTS idx_test_type ON test_results(test_type);
 	`
@@ -282,3 +297,107 @@ func (db *DB) calculateStreak() int {
 func (db *DB) Close() error {
 	return db.conn.Close()
 }
+
+// SaveAchievement saves an unlocked achievement
+func (db *DB) SaveAchievement(achievementID string) error {
+	query := `INSERT OR IGNORE INTO achievements (id, unlocked_at) VALUES (?, ?)`
+	_, err := db.conn.Exec(query, achievementID, time.Now())
+	return err
+}
+
+// GetUnlockedAchievements returns all unlocked achievement IDs
+func (db *DB) GetUnlockedAchievements() ([]string, error) {
+	query := `SELECT id FROM achievements ORDER BY unlocked_at DESC`
+	rows, err := db.conn.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var achievements []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		achievements = append(achievements, id)
+	}
+
+	return achievements, nil
+}
+
+// SaveGoal saves or updates a goal
+func (db *DB) SaveGoal(goal GoalRecord) error {
+	query := `
+	INSERT OR REPLACE INTO goals (id, type, target, current, completed, start_date, end_date)
+	VALUES (?, ?, ?, ?, ?, ?, ?)
+	`
+	_, err := db.conn.Exec(query, goal.ID, goal.Type, goal.Target, goal.Current, 
+		goal.Completed, goal.StartDate, goal.EndDate)
+	return err
+}
+
+// GetGoals returns all active goals
+func (db *DB) GetGoals() ([]GoalRecord, error) {
+	query := `SELECT id, type, target, current, completed, start_date, end_date FROM goals`
+	rows, err := db.conn.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var goals []GoalRecord
+	for rows.Next() {
+		var goal GoalRecord
+		var startDateStr, endDateStr string
+		if err := rows.Scan(&goal.ID, &goal.Type, &goal.Target, &goal.Current, 
+			&goal.Completed, &startDateStr, &endDateStr); err != nil {
+			return nil, err
+		}
+
+		// Parse dates
+		for _, layout := range []string{"2006-01-02 15:04:05", "2006-01-02T15:04:05Z", time.RFC3339} {
+			if t, err := time.Parse(layout, startDateStr); err == nil {
+				goal.StartDate = t
+				break
+			}
+		}
+		for _, layout := range []string{"2006-01-02 15:04:05", "2006-01-02T15:04:05Z", time.RFC3339} {
+			if t, err := time.Parse(layout, endDateStr); err == nil {
+				goal.EndDate = t
+				break
+			}
+		}
+
+		goals = append(goals, goal)
+	}
+
+	return goals, nil
+}
+
+// GetModeStats returns test counts by mode type
+func (db *DB) GetModeStats() (map[string]int, error) {
+	query := `
+	SELECT test_type, COUNT(*) as count
+	FROM test_results
+	GROUP BY test_type
+	`
+	rows, err := db.conn.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	stats := make(map[string]int)
+	for rows.Next() {
+		var testType string
+		var count int
+		if err := rows.Scan(&testType, &count); err != nil {
+			return nil, err
+		}
+		stats[testType] = count
+	}
+
+	return stats, nil
+}
+

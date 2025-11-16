@@ -23,6 +23,11 @@ type Styles struct {
 	Cursor      lipgloss.Style
 	Pending     lipgloss.Style
 	ProgressBar lipgloss.Style
+	// Convenience color styles
+	Primary     lipgloss.Style
+	Muted       lipgloss.Style
+	Success     lipgloss.Style
+	Accent      lipgloss.Style
 }
 
 // NewStyles creates a new style set with the given theme
@@ -72,6 +77,15 @@ func NewStyles(theme config.Theme) *Styles {
 			Foreground(theme.Muted),
 		ProgressBar: lipgloss.NewStyle().
 			Foreground(theme.Success),
+		// Convenience color styles
+		Primary: lipgloss.NewStyle().
+			Foreground(theme.Primary),
+		Muted: lipgloss.NewStyle().
+			Foreground(theme.Muted),
+		Success: lipgloss.NewStyle().
+			Foreground(theme.Success),
+		Accent: lipgloss.NewStyle().
+			Foreground(theme.Accent),
 	}
 }
 
