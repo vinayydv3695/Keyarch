@@ -14,6 +14,7 @@ type option struct {
 }
 
 var options = []option{
+	{"10 words", 10},
 	{"25 words", 25},
 	{"50 words", 50},
 	{"100 words", 100},
