@@ -15,6 +15,7 @@ import (
 	"github.com/vinayydv3695/keyarch/internal/tui/home"
 	"github.com/vinayydv3695/keyarch/internal/tui/language"
 	"github.com/vinayydv3695/keyarch/internal/tui/progress"
+	"github.com/vinayydv3695/keyarch/internal/tui/settings"
 	"github.com/vinayydv3695/keyarch/internal/tui/stats"
 	"github.com/vinayydv3695/keyarch/internal/tui/summary"
 	"github.com/vinayydv3695/keyarch/internal/tui/test"
@@ -187,17 +188,22 @@ func (a *App) Run() error {
 				return err
 			}
 
-		case "themes":
-			if err := a.runThemes(); err != nil {
-				return err
-			}
-
-		case "quit":
-			return nil
-
-		default:
-			a.state = "home"
+	case "themes":
+		if err := a.runThemes(); err != nil {
+			return err
 		}
+
+	case "settings":
+		if err := a.runSettings(); err != nil {
+			return err
+		}
+
+	case "quit":
+		return nil
+
+	default:
+		a.state = "home"
+	}
 	}
 }
 
@@ -229,6 +235,8 @@ func (a *App) runHome() error {
 		a.state = "progress"
 	case "Themes":
 		a.state = "themes"
+	case "Settings":
+		a.state = "settings"
 	case "Quit", "quit":
 		a.state = "quit"
 	default:
@@ -401,6 +409,27 @@ func (a *App) runThemes() error {
 	themeModel := finalModel.(theme.Model)
 	if themeModel.Selected() {
 		// Reload config to get the updated theme
+		newCfg, _ := config.Load()
+		if newCfg != nil {
+			a.cfg = newCfg
+		}
+		a.state = "home"
+	}
+
+	return nil
+}
+
+func (a *App) runSettings() error {
+	m := settings.New(a.cfg)
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	finalModel, err := p.Run()
+	if err != nil {
+		return err
+	}
+
+	settingsModel := finalModel.(settings.Model)
+	if settingsModel.Done() {
+		// Reload config to get the updated settings
 		newCfg, _ := config.Load()
 		if newCfg != nil {
 			a.cfg = newCfg
