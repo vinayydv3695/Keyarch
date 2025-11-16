@@ -12,6 +12,7 @@ import (
 	"github.com/vinayydv3695/keyarch/internal/goals"
 	"github.com/vinayydv3695/keyarch/internal/storage"
 	"github.com/vinayydv3695/keyarch/internal/tui/components"
+	"github.com/vinayydv3695/keyarch/internal/tui/heatmap"
 )
 
 type Model struct {
@@ -346,6 +347,13 @@ func (m Model) View() string {
 			keysInfo += fmt.Sprintf("  '%c' - %.0f%% accuracy\n", k.Key, k.Accuracy)
 		}
 		s += m.styles.RenderBox(keysInfo)
+		s += "\n"
+	}
+
+	// Typing Heatmap
+	if len(m.engine.KeyStrokes) > 0 {
+		heatmapView := heatmap.RenderHeatmap(m.engine.KeyStrokes)
+		s += m.styles.RenderBox(heatmapView)
 		s += "\n"
 	}
 

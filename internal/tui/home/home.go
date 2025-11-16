@@ -22,6 +22,7 @@ var menuItems = []menuItem{
 	{"Statistics", "View your progress"},
 	{"Progress", "Goals & Achievements"},
 	{"Themes", "Change color theme"},
+	{"Settings", "Sound & preferences"},
 	{"Quit", "Exit Keyarch"},
 }
 

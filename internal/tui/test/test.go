@@ -54,6 +54,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.finished = true
 			return m, nil
 		}
+		// Update WPM history for live graph
+		m.engine.UpdateWPMHistory()
+		
 		if !m.engine.IsFinished {
 			return m, tickCmd()
 		}
@@ -140,6 +143,14 @@ func (m Model) View() string {
 	s += m.styles.RenderBox(stats)
 	s += "\n\n"
 
+	// Live WPM Graph (if we have history data)
+	if len(m.engine.WPMHistory) > 1 && m.engine.IsStarted {
+		graphTitle := m.styles.Subtitle.Render("Live WPM")
+		graph := renderSparkline(m.engine.WPMHistory, 50, 8)
+		s += m.styles.RenderBox(graphTitle + "\n" + graph)
+		s += "\n\n"
+	}
+
 	// Progress bar (for non-timer modes)
 	if m.engine.Mode != engine.ModeTimer {
 		s += m.styles.RenderProgressBar(m.engine.GetProgress(), 50)
@@ -217,5 +228,65 @@ func wrapText(text string, maxWidth int) string {
 	}
 	
 	result += line
+	return result
+}
+
+// renderSparkline creates a simple ASCII sparkline graph
+func renderSparkline(data []float64, width, height int) string {
+	if len(data) == 0 {
+		return ""
+	}
+
+	// Find min and max values
+	min, max := data[0], data[0]
+	for _, v := range data {
+		if v < min {
+			min = v
+		}
+		if v > max {
+			max = v
+		}
+	}
+
+	// Handle edge case where all values are the same
+	if max == min {
+		max = min + 1
+	}
+
+	// Create the graph
+	blocks := []rune{'▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'}
+	graph := ""
+
+	// Sample the data to fit the width
+	step := len(data) / width
+	if step < 1 {
+		step = 1
+	}
+
+	for i := 0; i < len(data); i += step {
+		if len(graph) >= width {
+			break
+		}
+
+		value := data[i]
+		// Normalize to 0-1 range
+		normalized := (value - min) / (max - min)
+		// Map to block index
+		blockIndex := int(normalized * float64(len(blocks)-1))
+		if blockIndex >= len(blocks) {
+			blockIndex = len(blocks) - 1
+		}
+		if blockIndex < 0 {
+			blockIndex = 0
+		}
+
+		graph += string(blocks[blockIndex])
+	}
+
+	// Add min and max labels
+	result := fmt.Sprintf("  Max: %.0f WPM\n", max)
+	result += "  " + graph + "\n"
+	result += fmt.Sprintf("  Min: %.0f WPM", min)
+
 	return result
 }

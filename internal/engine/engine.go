@@ -29,6 +29,8 @@ type Engine struct {
 	Mistakes       int
 	MistakeMap     map[int]bool // tracks position of mistakes
 	KeyStrokes     map[rune]KeyStat
+	WPMHistory     []float64 // WPM samples over time
+	LastWPMUpdate  time.Time
 }
 
 // KeyStat tracks statistics for individual keys
@@ -46,12 +48,14 @@ type WeakKey struct {
 // New creates a new typing engine
 func New(targetText string, mode TestMode, duration int, wordCount int) *Engine {
 	return &Engine{
-		TargetText: targetText,
-		Mode:       mode,
-		Duration:   duration,
-		WordCount:  wordCount,
-		MistakeMap: make(map[int]bool),
-		KeyStrokes: make(map[rune]KeyStat),
+		TargetText:    targetText,
+		Mode:          mode,
+		Duration:      duration,
+		WordCount:     wordCount,
+		MistakeMap:    make(map[int]bool),
+		KeyStrokes:    make(map[rune]KeyStat),
+		WPMHistory:    make([]float64, 0),
+		LastWPMUpdate: time.Now(),
 	}
 }
 
@@ -278,4 +282,30 @@ func (e *Engine) GetWeakKeys(limit int) []WeakKey {
 	}
 
 	return keys
+}
+
+// UpdateWPMHistory samples current WPM for the live graph
+func (e *Engine) UpdateWPMHistory() {
+	if !e.IsStarted || e.IsFinished {
+		return
+	}
+
+	// Update every 2 seconds
+	if time.Since(e.LastWPMUpdate) < 2*time.Second {
+		return
+	}
+
+	currentWPM := e.GetWPM()
+	e.WPMHistory = append(e.WPMHistory, currentWPM)
+	e.LastWPMUpdate = time.Now()
+
+	// Keep only last 30 samples (60 seconds of data)
+	if len(e.WPMHistory) > 30 {
+		e.WPMHistory = e.WPMHistory[1:]
+	}
+}
+
+// GetWPMHistory returns the WPM history for graphing
+func (e *Engine) GetWPMHistory() []float64 {
+	return e.WPMHistory
 }
