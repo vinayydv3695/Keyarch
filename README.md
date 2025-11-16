@@ -22,11 +22,24 @@
 
 ## ✨ Features
 
+### 🎯 Core Features
 - **Multiple Test Modes**: Timer (15s-120s), Word (25-200), Quote, Code (10 languages)
 - **Real-Time Stats**: WPM, CPM, Accuracy, Mistakes
 - **10 Beautiful Themes**: Catppuccin, Nord, Dracula, Gruvbox, Rose Pine, Tokyo Night, One Dark, Monokai, Solarized, Material
 - **Performance Tracking**: History, streaks, weak keys analysis
 - **Local Storage**: All data stored in `~/.keyarch/`
+
+### 🎮 Gamification
+- **23 Achievements**: Speed, Accuracy, Dedication, Consistency badges
+- **Daily & Weekly Goals**: Auto-reset goals with progress tracking
+- **Progress Dashboard**: 3-tab interface (Achievements, Daily, Weekly)
+- **Hidden Achievements**: Unlock surprises at expert milestones
+
+### 🚀 Advanced Features
+- **📊 Live WPM Graph**: Real-time sparkline showing speed trends during test
+- **🎯 Difficulty Levels**: Easy/Medium/Hard word sets (300+ words)
+- **🔊 Sound Effects**: Keystroke sounds, achievement/goal notifications
+- **🔥 Typing Heatmap**: Color-coded keyboard showing key accuracy
 
 ---
 
@@ -369,6 +382,14 @@ GOOS=windows GOARCH=amd64 go build -o keyarch.exe ./cmd/keyarch
 
 ---
 
+## 📚 Documentation
+
+- **[GAMIFICATION.md](GAMIFICATION.md)** - Complete guide to achievements and goals system
+- **[ADVANCED_FEATURES.md](ADVANCED_FEATURES.md)** - Detailed docs for WPM Graph, Difficulty Levels, Sound Effects, and Heatmap
+- **[CODE_SNIPPETS.md](CODE_SNIPPETS.md)** - Available programming languages and snippet examples
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome! Here are some ideas:
@@ -391,16 +412,27 @@ Contributions are welcome! Here are some ideas:
 
 ## 🎯 Roadmap
 
+### ✅ Completed
+- [x] 23 Achievement system with badges
+- [x] Daily and weekly goals
+- [x] Live WPM graph during tests
+- [x] Difficulty levels (Easy/Medium/Hard)
+- [x] Sound effects system
+- [x] Typing heatmap visualization
+- [x] 10 beautiful themes
+- [x] 10 programming languages
+
+### 🚧 In Progress
 - [ ] Online quote API integration
 - [ ] Custom word lists
 - [ ] Multiplayer mode (local network)
+
+### 📋 Planned
 - [ ] GitHub Gist leaderboard sync
 - [ ] Custom themes (JSON config)
-- [ ] Sound effects (optional)
-- [ ] Blind mode (hide text)
-- [ ] Difficulty levels
-- [ ] More programming languages
 - [ ] Export statistics as JSON/CSV
+- [ ] Mobile-friendly version
+- [ ] Plugin system
 
 ---
 
