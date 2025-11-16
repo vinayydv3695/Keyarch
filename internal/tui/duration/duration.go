@@ -84,7 +84,7 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
-	s := components.Header("TIMED TEST", "Choose your test duration", m.styles)
+	s := components.HeaderWithWidth("TIMED TEST", "Choose your test duration", m.styles, m.width)
 	s += "\n\n"
 
 	// Options

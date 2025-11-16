@@ -97,7 +97,7 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
-	s := components.Header("Theme Selector", "Choose your visual style", m.styles)
+	s := components.HeaderWithWidth("Theme Selector", "Choose your visual style", m.styles, m.width)
 	s += "\n\n"
 
 	// Theme list

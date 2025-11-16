@@ -88,7 +88,7 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
-	s := components.Header("Difficulty Level", "Choose your challenge", m.styles)
+	s := components.HeaderWithWidth("Difficulty Level", "Choose your challenge", m.styles, m.width)
 	s += "\n\n"
 
 	// Render options

@@ -87,7 +87,7 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
-	s := components.Header("Settings", "Configure your preferences", m.styles)
+	s := components.HeaderWithWidth("Settings", "Configure your preferences", m.styles, m.width)
 	s += "\n\n"
 
 	// Sound setting

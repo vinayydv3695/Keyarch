@@ -89,7 +89,7 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
-	s := components.Header("KEYARCH", "A minimal typing test experience", m.styles)
+	s := components.HeaderWithWidth("KEYARCH", "A minimal typing test experience", m.styles, m.width)
 	s += "\n\n"
 
 	// Menu

@@ -296,7 +296,7 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
-	s := components.Header("Test Complete!", "Here are your results", m.styles)
+	s := components.HeaderWithWidth("Test Complete!", "Here are your results", m.styles, m.width)
 	s += "\n\n"
 
 	// Main stats
@@ -336,22 +336,28 @@ func (m Model) View() string {
 		s += "\n"
 	}
 
-	// Weak keys
-	weakKeys := m.engine.GetWeakKeys(5)
-	if len(weakKeys) > 0 {
-		keysInfo := m.styles.Title.Render("Weak Keys") + "\n\n"
-		for i, k := range weakKeys {
-			if i >= 3 {
-				break
+	// Weak keys (only show on wider terminals)
+	if m.width > 60 {
+		weakKeys := m.engine.GetWeakKeys(5)
+		if len(weakKeys) > 0 {
+			keysInfo := m.styles.Title.Render("Weak Keys") + "\n\n"
+			maxKeys := 3
+			if m.width < 80 {
+				maxKeys = 2
 			}
-			keysInfo += fmt.Sprintf("  '%c' - %.0f%% accuracy\n", k.Key, k.Accuracy)
+			for i, k := range weakKeys {
+				if i >= maxKeys {
+					break
+				}
+				keysInfo += fmt.Sprintf("  '%c' - %.0f%% accuracy\n", k.Key, k.Accuracy)
+			}
+			s += m.styles.RenderBox(keysInfo)
+			s += "\n"
 		}
-		s += m.styles.RenderBox(keysInfo)
-		s += "\n"
 	}
 
-	// Typing Heatmap
-	if len(m.engine.KeyStrokes) > 0 {
+	// Typing Heatmap (only show on wider terminals)
+	if m.width > 80 && len(m.engine.KeyStrokes) > 0 {
 		heatmapView := heatmap.RenderHeatmap(m.engine.KeyStrokes)
 		s += m.styles.RenderBox(heatmapView)
 		s += "\n"

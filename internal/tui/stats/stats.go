@@ -115,7 +115,7 @@ func (m Model) View() string {
 		return fmt.Sprintf("Error loading stats: %v\n\nPress ESC to go back", m.err)
 	}
 
-	s := components.Header("Statistics", "Your typing journey", m.styles)
+	s := components.HeaderWithWidth("Statistics", "Your typing journey", m.styles, m.width)
 	s += "\n\n"
 
 	if m.stats.TotalTests == 0 {
@@ -137,8 +137,8 @@ func (m Model) View() string {
 	s += m.styles.RenderBox(overview)
 	s += "\n"
 
-	// Last 7 days graph
-	if len(m.graph) > 0 {
+	// Last 7 days graph (only on wider terminals)
+	if len(m.graph) > 0 && m.width > 60 {
 		graphView := m.styles.Title.Render("Last 7 Days WPM") + "\n\n"
 		graphView += m.renderGraph(m.graph)
 		s += m.styles.RenderBox(graphView)
@@ -148,8 +148,12 @@ func (m Model) View() string {
 	// Recent tests
 	if len(m.recent) > 0 {
 		recentView := m.styles.Title.Render("Recent Tests") + "\n\n"
+		maxTests := 5
+		if m.width < 70 {
+			maxTests = 3
+		}
 		for i, r := range m.recent {
-			if i >= 5 {
+			if i >= maxTests {
 				break
 			}
 			recentView += fmt.Sprintf("%s - %.0f WPM - %.1f%% - %s\n",

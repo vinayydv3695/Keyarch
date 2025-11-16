@@ -90,7 +90,7 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
-	s := components.Header("CODE MODE", "Choose programming language", m.styles)
+	s := components.HeaderWithWidth("CODE MODE", "Choose programming language", m.styles, m.width)
 	s += "\n\n"
 
 	// Options

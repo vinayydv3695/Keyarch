@@ -172,7 +172,16 @@ func (s *Styles) RenderTypingText(target string, userInput string, cursorPos int
 
 // Header renders a consistent header across screens
 func Header(title, subtitle string, styles *Styles) string {
-	logo := `
+	return HeaderWithWidth(title, subtitle, styles, 120)
+}
+
+// HeaderWithWidth renders a responsive header based on terminal width
+func HeaderWithWidth(title, subtitle string, styles *Styles, termWidth int) string {
+	var header string
+	
+	// Show logo only on wider terminals (> 80 cols)
+	if termWidth > 80 {
+		logo := `
  ██ ▄█▀▓█████▓██   ██▓ ▄▄▄       ██▀███   ▄████▄   ██░ ██ 
  ██▄█▒ ▓█   ▀ ▒██  ██▒▒████▄    ▓██ ▒ ██▒▒██▀ ▀█  ▓██░ ██▒
 ▓███▄░ ▒███    ▒██ ██░▒██  ▀█▄  ▓██ ░▄█ ▒▒▓█    ▄ ▒██▀▀██░
@@ -183,8 +192,9 @@ func Header(title, subtitle string, styles *Styles) string {
 ░ ░░ ░    ░   ▒ ▒ ░░    ░   ▒     ░░   ░ ░         ░  ░░ ░
 ░  ░      ░  ░░ ░           ░  ░   ░     ░ ░       ░  ░  ░
               ░ ░                        ░                `
-
-	header := styles.Title.Foreground(styles.Theme.Primary).Render(logo) + "\n\n"
+		header = styles.Title.Foreground(styles.Theme.Primary).Render(logo) + "\n\n"
+	}
+	
 	header += styles.RenderTitle(title) + "\n"
 	if subtitle != "" {
 		header += styles.RenderSubtitle(subtitle) + "\n"

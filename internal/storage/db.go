@@ -225,12 +225,14 @@ func (db *DB) GetLast7DaysWPM() (map[string]float64, error) {
 
 	data := make(map[string]float64)
 	for rows.Next() {
-		var date string
+		var date sql.NullString
 		var avgWPM float64
 		if err := rows.Scan(&date, &avgWPM); err != nil {
 			return nil, err
 		}
-		data[date] = avgWPM
+		if date.Valid {
+			data[date.String] = avgWPM
+		}
 	}
 
 	return data, nil
@@ -253,11 +255,14 @@ func (db *DB) calculateStreak() int {
 
 	var dates []time.Time
 	for rows.Next() {
-		var dateStr string
+		var dateStr sql.NullString
 		if err := rows.Scan(&dateStr); err != nil {
 			return 0
 		}
-		date, err := time.Parse("2006-01-02", dateStr)
+		if !dateStr.Valid {
+			continue
+		}
+		date, err := time.Parse("2006-01-02", dateStr.String)
 		if err != nil {
 			return 0
 		}

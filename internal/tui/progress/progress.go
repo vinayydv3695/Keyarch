@@ -97,7 +97,7 @@ func (m Model) View() string {
 	var s string
 
 	// Header
-	s += components.Header("PROGRESS & ACHIEVEMENTS", "Track your typing journey", m.styles)
+	s += components.HeaderWithWidth("PROGRESS & ACHIEVEMENTS", "Track your typing journey", m.styles, m.width)
 	s += "\n\n"
 
 	// Tabs

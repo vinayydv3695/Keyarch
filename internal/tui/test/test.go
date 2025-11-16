@@ -118,7 +118,7 @@ func (m Model) View() string {
 		title += fmt.Sprintf(" - %d words", m.engine.WordCount)
 	}
 
-	s += components.Header(title, "", m.styles)
+	s += components.HeaderWithWidth(title, "", m.styles, m.width)
 	s += "\n\n"
 
 	// Stats bar
@@ -143,17 +143,33 @@ func (m Model) View() string {
 	s += m.styles.RenderBox(stats)
 	s += "\n\n"
 
+	// Calculate responsive widths
+	graphWidth := m.width - 10
+	if graphWidth > 80 {
+		graphWidth = 80
+	}
+	if graphWidth < 30 {
+		graphWidth = 30
+	}
+
 	// Live WPM Graph (if we have history data)
 	if len(m.engine.WPMHistory) > 1 && m.engine.IsStarted {
 		graphTitle := m.styles.Subtitle.Render("Live WPM")
-		graph := renderSparkline(m.engine.WPMHistory, 50, 8)
+		graph := renderSparkline(m.engine.WPMHistory, graphWidth, 8)
 		s += m.styles.RenderBox(graphTitle + "\n" + graph)
 		s += "\n\n"
 	}
 
 	// Progress bar (for non-timer modes)
 	if m.engine.Mode != engine.ModeTimer {
-		s += m.styles.RenderProgressBar(m.engine.GetProgress(), 50)
+		progressWidth := m.width - 20
+		if progressWidth > 60 {
+			progressWidth = 60
+		}
+		if progressWidth < 20 {
+			progressWidth = 20
+		}
+		s += m.styles.RenderProgressBar(m.engine.GetProgress(), progressWidth)
 		s += "\n\n"
 	}
 
@@ -164,10 +180,13 @@ func (m Model) View() string {
 		m.engine.CurrentPos,
 	)
 
-	// Wrap text for display
-	maxWidth := 80
-	if m.width > 0 && m.width-10 < maxWidth {
-		maxWidth = m.width - 10
+	// Wrap text for display - responsive width
+	maxWidth := m.width - 10
+	if maxWidth > 80 {
+		maxWidth = 80
+	}
+	if maxWidth < 40 {
+		maxWidth = 40
 	}
 
 	s += m.styles.RenderBox(wrapText(typingText, maxWidth))

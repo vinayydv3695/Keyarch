@@ -84,7 +84,7 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
-	s := components.Header("WORD TEST", "Choose word count", m.styles)
+	s := components.HeaderWithWidth("WORD TEST", "Choose word count", m.styles, m.width)
 	s += "\n\n"
 
 	// Options
