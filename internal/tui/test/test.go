@@ -14,7 +14,7 @@ import (
 type tickMsg time.Time
 
 func tickCmd() tea.Cmd {
-	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }
@@ -211,7 +211,12 @@ func (m Model) Engine() *engine.Engine {
 
 // wrapText wraps text to a maximum width (simple implementation)
 func wrapText(text string, maxWidth int) string {
-	if len(text) <= maxWidth {
+	if maxWidth <= 0 {
+		maxWidth = 40
+	}
+	
+	// Quick check - if text is short enough, return as-is
+	if len(text) <= maxWidth*2 {
 		return text
 	}
 
