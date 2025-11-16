@@ -110,59 +110,54 @@ func (m Model) View() string {
 
 	var s string
 
-	// Header with mode info
-	title := "⌨️  Typing Test"
-	subtitle := ""
+	// Header
+	title := "Typing Test"
 	if m.engine.Mode == engine.ModeTimer {
-		subtitle = fmt.Sprintf("Duration: %ds", m.engine.Duration)
+		title += fmt.Sprintf(" - %ds", m.engine.Duration)
 	} else if m.engine.Mode == engine.ModeWords {
-		subtitle = fmt.Sprintf("Target: %d words", m.engine.WordCount)
-	} else if m.engine.Mode == engine.ModeQuote {
-		subtitle = "Quote Mode"
-	} else if m.engine.Mode == engine.ModeCode {
-		subtitle = "Code Practice"
+		title += fmt.Sprintf(" - %d words", m.engine.WordCount)
 	}
 
-	s += components.Header(title, subtitle, m.styles)
-	s += "\n"
+	s += components.Header(title, "", m.styles)
+	s += "\n\n"
 
-	// Stats bar in a nice box
+	// Stats bar
 	stats := ""
 	if m.engine.Mode == engine.ModeTimer {
 		remaining := m.engine.GetRemainingTime()
-		stats += m.styles.Accent.Bold(true).Render(fmt.Sprintf("⏱️  %ds", remaining)) + "  "
+		stats += m.styles.RenderStat("Time", fmt.Sprintf("%ds", remaining))
 	} else {
 		elapsed := int(m.engine.GetElapsedTime())
-		stats += m.styles.Muted.Render(fmt.Sprintf("⏱️  %ds", elapsed)) + "  "
+		stats += m.styles.RenderStat("Time", fmt.Sprintf("%ds", elapsed))
 	}
 
-	stats += m.styles.Primary.Bold(true).Render(fmt.Sprintf("%.0f", m.engine.GetWPM())) + m.styles.Muted.Render(" WPM") + "  "
-	stats += m.styles.Success.Render(fmt.Sprintf("%.1f%%", m.engine.GetAccuracy())) + m.styles.Muted.Render(" Accuracy") + "  "
-	
-	if m.engine.Mistakes > 0 {
-		stats += m.styles.Accent.Render(fmt.Sprintf("%d", m.engine.Mistakes)) + m.styles.Muted.Render(" Mistakes")
-	} else {
-		stats += m.styles.Success.Render("Perfect!") + " 🎯"
-	}
+	stats += "  "
+	stats += m.styles.RenderStat("WPM", fmt.Sprintf("%.0f", m.engine.GetWPM()))
+	stats += "  "
+	stats += m.styles.RenderStat("CPM", fmt.Sprintf("%.0f", m.engine.GetCPM()))
+	stats += "  "
+	stats += m.styles.RenderStat("Accuracy", fmt.Sprintf("%.1f%%", m.engine.GetAccuracy()))
+	stats += "  "
+	stats += m.styles.RenderStat("Mistakes", fmt.Sprintf("%d", m.engine.Mistakes))
 
-	s += m.styles.Border.Render(stats) + "\n\n"
+	s += m.styles.RenderBox(stats)
+	s += "\n\n"
 
 	// Live WPM Graph (if we have history data)
 	if len(m.engine.WPMHistory) > 1 && m.engine.IsStarted {
-		graphBox := m.styles.Subtitle.Render("📊 Live WPM Trend") + "\n"
-		graphBox += renderSparkline(m.engine.WPMHistory, 50, 8)
-		s += m.styles.Border.Render(graphBox) + "\n\n"
+		graphTitle := m.styles.Subtitle.Render("Live WPM")
+		graph := renderSparkline(m.engine.WPMHistory, 50, 8)
+		s += m.styles.RenderBox(graphTitle + "\n" + graph)
+		s += "\n\n"
 	}
 
 	// Progress bar (for non-timer modes)
 	if m.engine.Mode != engine.ModeTimer {
-		progress := m.engine.GetProgress()
-		progressBox := m.styles.Subtitle.Render("Progress") + "\n"
-		progressBox += m.styles.RenderProgressBar(progress, 50)
-		s += m.styles.Border.Render(progressBox) + "\n\n"
+		s += m.styles.RenderProgressBar(m.engine.GetProgress(), 50)
+		s += "\n\n"
 	}
 
-	// Typing area with focus
+	// Typing area
 	typingText := m.styles.RenderTypingText(
 		m.engine.TargetText,
 		m.engine.UserInput,
@@ -170,28 +165,18 @@ func (m Model) View() string {
 	)
 
 	// Wrap text for display
-	maxWidth := 70
-	if m.width > 0 && m.width-20 < maxWidth {
-		maxWidth = m.width - 20
+	maxWidth := 80
+	if m.width > 0 && m.width-10 < maxWidth {
+		maxWidth = m.width - 10
 	}
 
-	wrappedText := wrapText(typingText, maxWidth)
-	
-	// Add focus border around typing area
-	typingBox := m.styles.Subtitle.Render("Type here:") + "\n\n"
-	typingBox += wrappedText
-	
-	focusBorder := m.styles.Border.Copy().
-		BorderForeground(m.styles.Theme.Accent).
-		Width(maxWidth + 4)
-	
-	s += focusBorder.Render(typingBox) + "\n"
+	s += m.styles.RenderBox(wrapText(typingText, maxWidth))
 
 	// Help text
 	if !m.engine.IsStarted {
-		s += "\n" + components.Footer("✨ Start typing to begin • ESC: Back • Ctrl+C: Quit", m.styles)
+		s += components.Footer("Start typing to begin • ESC: Back • Ctrl+C: Quit", m.styles)
 	} else {
-		s += "\n" + components.Footer("Keep typing • ESC: Back to menu", m.styles)
+		s += components.Footer("Keep typing • ESC: Back • Ctrl+C: Quit", m.styles)
 	}
 
 	return s

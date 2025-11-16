@@ -11,20 +11,19 @@ import (
 type menuItem struct {
 	title string
 	desc  string
-	icon  string
 }
 
 var menuItems = []menuItem{
-	{"Quick Test", "15 second typing test", "⚡"},
-	{"Timed Test", "Choose your duration", "⏱️"},
-	{"Word Test", "Type a specific number of words", "📝"},
-	{"Quote Mode", "Type inspiring quotes", "💭"},
-	{"Code Mode", "Practice programming", "💻"},
-	{"Statistics", "View your progress", "📊"},
-	{"Progress", "Goals & Achievements", "🏆"},
-	{"Themes", "Change color theme", "🎨"},
-	{"Settings", "Sound & preferences", "⚙️"},
-	{"Quit", "Exit Keyarch", "👋"},
+	{"Quick Test", "15 second typing test"},
+	{"Timed Test", "Choose your duration"},
+	{"Word Test", "Type a specific number of words"},
+	{"Quote Mode", "Type inspiring quotes"},
+	{"Code Mode", "Practice programming"},
+	{"Statistics", "View your progress"},
+	{"Progress", "Goals & Achievements"},
+	{"Themes", "Change color theme"},
+	{"Settings", "Sound & preferences"},
+	{"Quit", "Exit Keyarch"},
 }
 
 type Model struct {
@@ -90,61 +89,19 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
-	s := components.Header("KEYARCH", "Master the art of typing", m.styles)
-	s += "\n"
+	s := components.Header("KEYARCH", "A minimal typing test experience", m.styles)
+	s += "\n\n"
 
-	// Welcome message
-	welcomeBox := m.styles.Muted.Render("  Welcome back! Ready to improve your typing skills?  ")
-	s += m.styles.Border.Render(welcomeBox) + "\n\n"
-
-	// Section: Tests
-	s += m.styles.Title.Render("  📋 TYPING TESTS") + "\n\n"
-	for i := 0; i < 3; i++ {
-		item := menuItems[i]
+	// Menu
+	for i, item := range menuItems {
+		s += m.styles.RenderMenuItem(item.title, i == m.cursor)
 		if i == m.cursor {
-			content := m.styles.Accent.Bold(true).Render(item.icon+" "+item.title) + "\n"
-			content += "  " + m.styles.Muted.Render(item.desc)
-			s += m.styles.Border.Render(content) + "\n"
-		} else {
-			s += "  " + m.styles.MenuItem.Render(item.icon+" "+item.title)
-			s += " " + m.styles.Muted.Render("· "+item.desc) + "\n"
+			s += "  " + m.styles.Subtitle.Render(item.desc)
 		}
+		s += "\n"
 	}
 
-	s += "\n"
-
-	// Section: Practice Modes
-	s += m.styles.Title.Render("  🎯 PRACTICE MODES") + "\n\n"
-	for i := 3; i < 5; i++ {
-		item := menuItems[i]
-		if i == m.cursor {
-			content := m.styles.Accent.Bold(true).Render(item.icon+" "+item.title) + "\n"
-			content += "  " + m.styles.Muted.Render(item.desc)
-			s += m.styles.Border.Render(content) + "\n"
-		} else {
-			s += "  " + m.styles.MenuItem.Render(item.icon+" "+item.title)
-			s += " " + m.styles.Muted.Render("· "+item.desc) + "\n"
-		}
-	}
-
-	s += "\n"
-
-	// Section: Analytics & Settings
-	s += m.styles.Title.Render("  ⚙️  TOOLS & SETTINGS") + "\n\n"
-	for i := 5; i < len(menuItems); i++ {
-		item := menuItems[i]
-		if i == m.cursor {
-			content := m.styles.Accent.Bold(true).Render(item.icon+" "+item.title) + "\n"
-			content += "  " + m.styles.Muted.Render(item.desc)
-			s += m.styles.Border.Render(content) + "\n"
-		} else {
-			s += "  " + m.styles.MenuItem.Render(item.icon+" "+item.title)
-			s += " " + m.styles.Muted.Render("· "+item.desc) + "\n"
-		}
-	}
-
-	s += "\n"
-	s += components.Footer("↑/↓: Navigate • Enter: Select • q: Quit", m.styles)
+	s += components.Footer("↑/↓: Navigate • Enter: Select • q/Ctrl+C: Quit", m.styles)
 
 	return s
 }

@@ -296,127 +296,86 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
-	s := components.Header("✅ Test Complete!", "Excellent work! Here are your results", m.styles)
+	s := components.Header("Test Complete!", "Here are your results", m.styles)
+	s += "\n\n"
+
+	// Main stats
+	mainStats := ""
+	mainStats += m.styles.Title.Render(fmt.Sprintf("%.0f WPM", m.engine.GetWPM())) + "\n"
+	mainStats += m.styles.Subtitle.Render(fmt.Sprintf("%.0f CPM", m.engine.GetCPM())) + "\n"
+	mainStats += m.styles.Subtitle.Render(fmt.Sprintf("%.1f%% Accuracy", m.engine.GetAccuracy())) + "\n\n"
+
+	// Detailed stats
+	elapsed := int(m.engine.GetElapsedTime())
+	mainStats += m.styles.RenderStat("Time", fmt.Sprintf("%ds", elapsed)) + "\n"
+	mainStats += m.styles.RenderStat("Characters", fmt.Sprintf("%d", len(m.engine.UserInput))) + "\n"
+	mainStats += m.styles.RenderStat("Mistakes", fmt.Sprintf("%d", m.engine.Mistakes)) + "\n"
+	mainStats += m.styles.RenderStat("Correct", fmt.Sprintf("%d", m.countCorrect())) + "\n"
+
+	s += m.styles.RenderBox(mainStats)
 	s += "\n"
 
-	// Performance message first
-	wpm := m.engine.GetWPM()
-	accuracy := m.engine.GetAccuracy()
-	var msg string
-	var emoji string
-	switch {
-	case wpm >= 100:
-		msg = "Incredible! You're a typing master!"
-		emoji = "🔥"
-	case wpm >= 80:
-		msg = "Excellent! Very fast typing!"
-		emoji = "⚡"
-	case wpm >= 60:
-		msg = "Great job! Above average!"
-		emoji = "👍"
-	case wpm >= 40:
-		msg = "Good work! Keep practicing!"
-		emoji = "✓"
-	default:
-		msg = "Keep practicing to improve!"
-		emoji = "💪"
-	}
-	
-	msgBox := emoji + "  " + m.styles.Accent.Bold(true).Render(msg)
-	s += m.styles.Border.Render(msgBox) + "\n\n"
-
-	// Main stats in a prominent card
-	mainStats := m.styles.Title.Render("📊 PERFORMANCE") + "\n\n"
-	
-	// Big WPM display
-	mainStats += "  " + m.styles.Primary.Bold(true).Render(fmt.Sprintf("%.0f", wpm)) + 
-		m.styles.Muted.Render(" WPM") + "\n"
-	
-	// Accuracy with color
-	accuracyColor := m.styles.Success
-	if accuracy < 95 {
-		accuracyColor = m.styles.Accent
-	}
-	mainStats += "  " + accuracyColor.Bold(true).Render(fmt.Sprintf("%.1f%%", accuracy)) + 
-		m.styles.Muted.Render(" Accuracy") + "\n\n"
-
-	// Detailed stats in columns
-	elapsed := int(m.engine.GetElapsedTime())
-	mainStats += "  " + m.styles.Muted.Render("⏱️  Time:       ") + m.styles.Primary.Render(fmt.Sprintf("%ds", elapsed)) + "\n"
-	mainStats += "  " + m.styles.Muted.Render("📝 Characters: ") + m.styles.Primary.Render(fmt.Sprintf("%d", len(m.engine.UserInput))) + "\n"
-	mainStats += "  " + m.styles.Muted.Render("✓  Correct:    ") + m.styles.Success.Render(fmt.Sprintf("%d", m.countCorrect())) + "\n"
-	
-	if m.engine.Mistakes > 0 {
-		mainStats += "  " + m.styles.Muted.Render("✗  Mistakes:   ") + m.styles.Accent.Render(fmt.Sprintf("%d", m.engine.Mistakes)) + "\n"
-	} else {
-		mainStats += "  " + m.styles.Success.Render("✓  Perfect! No mistakes! 🎯") + "\n"
-	}
-
-	s += m.styles.Border.Render(mainStats) + "\n"
-
-	// New achievements unlocked with celebration
+	// New achievements unlocked
 	if len(m.newAchievements) > 0 {
-		achievementInfo := m.styles.Title.Render("🎉 NEW ACHIEVEMENTS") + "\n\n"
+		achievementInfo := m.styles.Title.Render("🎉 New Achievements Unlocked!") + "\n\n"
 		for _, ach := range m.newAchievements {
-			badgeBox := m.styles.Accent.Bold(true).Render(ach.Icon+" "+ach.Name) + "\n" +
-				"  " + m.styles.Muted.Render(ach.Description)
-			achievementInfo += m.styles.Border.Copy().
-				BorderForeground(m.styles.Theme.Success).
-				Render(badgeBox) + "\n"
+			achievementInfo += fmt.Sprintf("  %s %s\n", ach.Icon, m.styles.Accent.Render(ach.Name))
+			achievementInfo += fmt.Sprintf("     %s\n", m.styles.Muted.Render(ach.Description))
 		}
-		s += achievementInfo + "\n"
+		s += m.styles.RenderBox(achievementInfo)
+		s += "\n"
 	}
 
 	// Completed goals
 	if len(m.completedGoals) > 0 {
-		goalInfo := m.styles.Title.Render("✅ GOALS COMPLETED") + "\n\n"
+		goalInfo := m.styles.Title.Render("✅ Goals Completed!") + "\n\n"
 		for _, goal := range m.completedGoals {
-			goalBox := "🎯 " + m.styles.Success.Bold(true).Render(goal.Name)
-			goalInfo += m.styles.Border.Copy().
-				BorderForeground(m.styles.Theme.Success).
-				Render(goalBox) + "\n"
+			goalInfo += fmt.Sprintf("  %s %s\n", "🎯", m.styles.Accent.Render(goal.Name))
 		}
-		s += goalInfo + "\n"
+		s += m.styles.RenderBox(goalInfo)
+		s += "\n"
 	}
 
-	// Weak keys analysis
+	// Weak keys
 	weakKeys := m.engine.GetWeakKeys(5)
 	if len(weakKeys) > 0 {
-		keysInfo := m.styles.Title.Render("🎯 FOCUS AREAS") + "\n\n"
-		keysInfo += m.styles.Muted.Render("  Practice these keys to improve:\n\n")
+		keysInfo := m.styles.Title.Render("Weak Keys") + "\n\n"
 		for i, k := range weakKeys {
 			if i >= 3 {
 				break
 			}
-			keyDisplay := fmt.Sprintf("'%c'", k.Key)
-			accuracy := fmt.Sprintf("%.0f%%", k.Accuracy)
-			
-			barLength := int(k.Accuracy / 10)
-			bar := ""
-			for j := 0; j < 10; j++ {
-				if j < barLength {
-					bar += "█"
-				} else {
-					bar += "░"
-				}
-			}
-			
-			keysInfo += fmt.Sprintf("  %s  %s %s\n", 
-				m.styles.Primary.Bold(true).Render(keyDisplay),
-				bar,
-				m.styles.Muted.Render(accuracy))
+			keysInfo += fmt.Sprintf("  '%c' - %.0f%% accuracy\n", k.Key, k.Accuracy)
 		}
-		s += m.styles.Border.Render(keysInfo) + "\n"
+		s += m.styles.RenderBox(keysInfo)
+		s += "\n"
 	}
 
 	// Typing Heatmap
 	if len(m.engine.KeyStrokes) > 0 {
-		heatmapBox := m.styles.Title.Render("🔥 TYPING HEATMAP") + "\n"
-		heatmapBox += heatmap.RenderHeatmap(m.engine.KeyStrokes)
-		s += m.styles.Border.Render(heatmapBox) + "\n"
+		heatmapView := heatmap.RenderHeatmap(m.engine.KeyStrokes)
+		s += m.styles.RenderBox(heatmapView)
+		s += "\n"
 	}
 
-	s += "\n" + components.Footer("Press Enter to return to menu", m.styles)
+	// Performance message
+	wpm := m.engine.GetWPM()
+	var msg string
+	switch {
+	case wpm >= 100:
+		msg = "🔥 Incredible! You're a typing master!"
+	case wpm >= 80:
+		msg = "⚡ Excellent! Very fast typing!"
+	case wpm >= 60:
+		msg = "👍 Great job! Above average!"
+	case wpm >= 40:
+		msg = "✓ Good work! Keep practicing!"
+	default:
+		msg = "💪 Keep practicing to improve!"
+	}
+
+	s += "\n" + m.styles.Subtitle.Render(msg) + "\n"
+
+	s += components.Footer("Enter: Return to menu • Ctrl+C: Quit", m.styles)
 
 	return s
 }
