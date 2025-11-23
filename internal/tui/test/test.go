@@ -3,6 +3,7 @@ package test
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -209,7 +210,7 @@ func (m Model) Engine() *engine.Engine {
 	return m.engine
 }
 
-// wrapText wraps text to a maximum width (simple implementation)
+// wrapText wraps text to a maximum width (optimized with strings.Builder)
 func wrapText(text string, maxWidth int) string {
 	if maxWidth <= 0 {
 		maxWidth = 40
@@ -220,9 +221,10 @@ func wrapText(text string, maxWidth int) string {
 		return text
 	}
 
-	// Simple wrapping by finding space characters
-	result := ""
-	line := ""
+	// Use strings.Builder for efficient concatenation
+	var result strings.Builder
+	var line strings.Builder
+	result.Grow(len(text) + 100)
 	
 	// Strip ANSI codes for width calculation (simplified)
 	visualLen := 0
@@ -234,7 +236,7 @@ func wrapText(text string, maxWidth int) string {
 		}
 		
 		if inAnsi {
-			line += string(r)
+			line.WriteRune(r)
 			if r == 'm' {
 				inAnsi = false
 			}
@@ -242,17 +244,18 @@ func wrapText(text string, maxWidth int) string {
 		}
 		
 		if visualLen >= maxWidth && r == ' ' {
-			result += line + "\n"
-			line = ""
+			result.WriteString(line.String())
+			result.WriteRune('\n')
+			line.Reset()
 			visualLen = 0
 		} else {
-			line += string(r)
+			line.WriteRune(r)
 			visualLen++
 		}
 	}
 	
-	result += line
-	return result
+	result.WriteString(line.String())
+	return result.String()
 }
 
 // renderSparkline creates a simple ASCII sparkline graph

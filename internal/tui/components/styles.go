@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/vinayydv3695/keyarch/internal/config"
@@ -146,7 +147,9 @@ func (s *Styles) RenderProgressBar(progress float64, width int) string {
 
 // RenderTypingText renders the typing test text with highlighting
 func (s *Styles) RenderTypingText(target string, userInput string, cursorPos int) string {
-	result := ""
+	// Pre-allocate builder with estimated capacity
+	var result strings.Builder
+	result.Grow(len(target) * 20) // Account for ANSI codes
 
 	for i, char := range target {
 		charStr := string(char)
@@ -154,20 +157,20 @@ func (s *Styles) RenderTypingText(target string, userInput string, cursorPos int
 		if i < len(userInput) {
 			// Already typed
 			if userInput[i] == target[i] {
-				result += s.Correct.Render(charStr)
+				result.WriteString(s.Correct.Render(charStr))
 			} else {
-				result += s.Incorrect.Render(charStr)
+				result.WriteString(s.Incorrect.Render(charStr))
 			}
 		} else if i == cursorPos {
 			// Cursor position
-			result += s.Cursor.Render(charStr)
+			result.WriteString(s.Cursor.Render(charStr))
 		} else {
 			// Not yet typed
-			result += s.Pending.Render(charStr)
+			result.WriteString(s.Pending.Render(charStr))
 		}
 	}
 
-	return result
+	return result.String()
 }
 
 // Header renders a consistent header across screens
