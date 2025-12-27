@@ -24,6 +24,7 @@ type Model struct {
 	height              int
 	saved               bool
 	done                bool
+	replay              bool
 	newAchievements     []achievements.Achievement
 	completedGoals      []goals.Goal
 	achievementsChecked bool
@@ -282,6 +283,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.done = true
 			return m, tea.Quit
 
+		case "r":
+			// Replay the same test
+			m.replay = true
+			m.done = true
+			return m, tea.Quit
+
 		case "enter", "esc", " ":
 			m.done = true
 			return m, tea.Quit
@@ -381,11 +388,15 @@ func (m Model) View() string {
 
 	s += "\n" + m.styles.Subtitle.Render(msg) + "\n"
 
-	s += components.Footer("Enter: Return to menu • Ctrl+C: Quit", m.styles)
+	s += components.Footer("R: Replay • Enter: Menu • Ctrl+C: Quit", m.styles)
 
 	return s
 }
 
 func (m Model) Done() bool {
 	return m.done
+}
+
+func (m Model) ShouldReplay() bool {
+	return m.replay
 }

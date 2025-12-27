@@ -17,6 +17,7 @@ var menuItems = []menuItem{
 	{"Quick Test", "15 second typing test"},
 	{"Timed Test", "Choose your duration"},
 	{"Word Test", "Type a specific number of words"},
+	{"Custom Text", "Practice with your own text"},
 	{"Quote Mode", "Type inspiring quotes"},
 	{"Code Mode", "Practice programming"},
 	{"Statistics", "View your progress"},

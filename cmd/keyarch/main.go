@@ -11,6 +11,7 @@ import (
 	"github.com/vinayydv3695/keyarch/internal/data"
 	"github.com/vinayydv3695/keyarch/internal/engine"
 	"github.com/vinayydv3695/keyarch/internal/storage"
+	"github.com/vinayydv3695/keyarch/internal/tui/customtext"
 	"github.com/vinayydv3695/keyarch/internal/tui/duration"
 	"github.com/vinayydv3695/keyarch/internal/tui/home"
 	"github.com/vinayydv3695/keyarch/internal/tui/language"
@@ -130,9 +131,10 @@ func runDirectMode(cfg *config.Config, db *storage.DB) {
 
 // App represents the main application
 type App struct {
-	cfg   *config.Config
-	db    *storage.DB
-	state string
+	cfg          *config.Config
+	db           *storage.DB
+	state        string
+	lastTestText string // Store last test text for replay
 }
 
 // NewApp creates a new application
@@ -165,6 +167,11 @@ func (a *App) Run() error {
 
 		case "words":
 			if err := a.runWordTest(); err != nil {
+				return err
+			}
+
+		case "custom":
+			if err := a.runCustomText(); err != nil {
 				return err
 			}
 
@@ -225,6 +232,8 @@ func (a *App) runHome() error {
 		a.state = "timed"
 	case "Word Test":
 		a.state = "words"
+	case "Custom Text":
+		a.state = "custom"
 	case "Quote Mode":
 		a.state = "quote"
 	case "Code Mode":
@@ -304,6 +313,36 @@ func (a *App) runWordTest() error {
 	return a.runTest(eng)
 }
 
+func (a *App) runCustomText() error {
+	// Show custom text input screen
+	m := customtext.New(a.cfg)
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	finalModel, err := p.Run()
+	if err != nil {
+		return err
+	}
+
+	customModel := finalModel.(customtext.Model)
+	
+	// If canceled, go back
+	if customModel.Canceled() || !customModel.Done() {
+		a.state = "home"
+		return nil
+	}
+
+	// Get the custom text
+	text := customModel.Text()
+	if text == "" {
+		a.state = "home"
+		return nil
+	}
+
+	// Create engine with custom text (using word mode logic)
+	eng := engine.New(text, engine.ModeWords, 0, 0)
+
+	return a.runTest(eng)
+}
+
 func (a *App) runQuoteMode() error {
 	quote := data.GetRandomQuote()
 	eng := engine.New(quote.Text, engine.ModeQuote, 0, 0)
@@ -336,6 +375,9 @@ func (a *App) runCodeMode() error {
 }
 
 func (a *App) runTest(eng *engine.Engine) error {
+	// Store the test text for potential replay
+	a.lastTestText = eng.TargetText
+	
 	// Run the test
 	m := test.New(eng, a.cfg)
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -356,6 +398,14 @@ func (a *App) runTest(eng *engine.Engine) error {
 		}
 
 		summaryModel := summaryFinal.(summary.Model)
+		
+		// Check if user wants to replay
+		if summaryModel.ShouldReplay() {
+			// Replay with the same text
+			replayEng := engine.New(a.lastTestText, eng.Mode, eng.Duration, eng.WordCount)
+			return a.runTest(replayEng)
+		}
+		
 		if summaryModel.Done() {
 			a.state = "home"
 		}
