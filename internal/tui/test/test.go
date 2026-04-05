@@ -175,13 +175,8 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
-	// When typing has started, use zoomed-in focus mode
-	if m.engine.IsStarted && !m.engine.IsFinished {
-		return m.renderFocusMode()
-	}
-
-	// Before typing starts, show full UI
-	return m.renderFullView()
+	// Always use focused mode for clean, distraction-free typing
+	return m.renderFocusMode()
 }
 
 // renderFocusMode shows a clean, minimal typing view (font zoom handles the "big" effect)
@@ -194,17 +189,30 @@ func (m Model) renderFocusMode() string {
 
 	// Minimal stats bar - just time and WPM
 	var statsLine string
-	if m.engine.Mode == engine.ModeTimer {
-		remaining := m.engine.GetRemainingTime()
-		statsLine = m.styles.StatValue.Render(fmt.Sprintf("%ds", remaining))
+	if !m.engine.IsStarted {
+		// Before typing starts, show mode info
+		if m.engine.Mode == engine.ModeTimer {
+			statsLine = m.styles.Muted.Render(fmt.Sprintf("%ds", m.engine.Duration))
+		} else if m.engine.Mode == engine.ModeWords {
+			statsLine = m.styles.Muted.Render(fmt.Sprintf("%d words", m.engine.WordCount))
+		} else {
+			statsLine = m.styles.Muted.Render(string(m.engine.Mode))
+		}
+		statsLine += m.styles.Muted.Render("  |  Start typing to begin...")
 	} else {
-		elapsed := int(m.engine.GetElapsedTime())
-		statsLine = m.styles.StatValue.Render(fmt.Sprintf("%ds", elapsed))
+		// During typing, show live stats
+		if m.engine.Mode == engine.ModeTimer {
+			remaining := m.engine.GetRemainingTime()
+			statsLine = m.styles.StatValue.Render(fmt.Sprintf("%ds", remaining))
+		} else {
+			elapsed := int(m.engine.GetElapsedTime())
+			statsLine = m.styles.StatValue.Render(fmt.Sprintf("%ds", elapsed))
+		}
+		statsLine += m.styles.Muted.Render("  |  ")
+		statsLine += m.styles.StatValue.Render(fmt.Sprintf("%.0f WPM", m.engine.GetWPM()))
+		statsLine += m.styles.Muted.Render("  |  ")
+		statsLine += m.styles.StatValue.Render(fmt.Sprintf("%.1f%%", m.engine.GetAccuracy()))
 	}
-	statsLine += m.styles.Muted.Render("  •  ")
-	statsLine += m.styles.StatValue.Render(fmt.Sprintf("%.0f WPM", m.engine.GetWPM()))
-	statsLine += m.styles.Muted.Render("  •  ")
-	statsLine += m.styles.StatValue.Render(fmt.Sprintf("%.1f%%", m.engine.GetAccuracy()))
 
 	// Render only 2 lines of text (current + next) - clean focused view
 	typingText := m.styles.RenderTypingTextFocused(

@@ -204,11 +204,24 @@ func (s *Styles) RenderTypingTextFocused(target string, userInput string, cursor
 		maxWidth = 40
 	}
 
-	// Split text into lines based on wrapping
-	lines := s.splitIntoLines(target, maxWidth)
+	// Split text into lines and track character positions for each line
+	lines, linePositions := s.splitIntoLinesWithPositions(target, maxWidth)
 
 	// Find which line the cursor is on
-	currentLineIdx := s.FindLineForPosition(target, cursorPos, maxWidth)
+	currentLineIdx := 0
+	for i, positions := range linePositions {
+		if len(positions) > 0 {
+			startPos := positions[0]
+			endPos := positions[len(positions)-1]
+			if cursorPos >= startPos && cursorPos <= endPos {
+				currentLineIdx = i
+				break
+			}
+			if cursorPos > endPos && i == len(linePositions)-1 {
+				currentLineIdx = i
+			}
+		}
+	}
 
 	// Determine which lines to show (current + 1 upcoming = 2 lines total for focus)
 	startLine := currentLineIdx
@@ -219,83 +232,108 @@ func (s *Styles) RenderTypingTextFocused(target string, userInput string, cursor
 
 	// Build the focused view
 	var result strings.Builder
-	lineStartPos := 0
 
-	for lineIdx := 0; lineIdx < len(lines); lineIdx++ {
+	for lineIdx := startLine; lineIdx < endLine; lineIdx++ {
 		lineText := lines[lineIdx]
-		lineEndPos := lineStartPos + len(lineText)
+		positions := linePositions[lineIdx]
 
-		// Only render lines in the focused range
-		if lineIdx >= startLine && lineIdx < endLine {
-			// Render this line with styling
-			for i, char := range lineText {
-				charStr := string(char)
-				pos := lineStartPos + i
+		// Render this line with styling
+		for i, char := range lineText {
+			charStr := string(char)
 
-				if pos < len(userInput) {
-					// Already typed
-					if pos < len(target) && userInput[pos] == target[pos] {
-						result.WriteString(s.Correct.Render(charStr))
-					} else {
-						result.WriteString(s.Incorrect.Render(charStr))
-					}
-				} else if pos == cursorPos {
-					// Cursor position
-					if cursorVisible {
-						result.WriteString(s.Cursor.Render(charStr))
-					} else {
-						result.WriteString(s.CursorHidden.Render(charStr))
-					}
-				} else {
-					// Not yet typed
-					result.WriteString(s.Pending.Render(charStr))
-				}
+			// Get the actual position in the target text
+			var pos int
+			if i < len(positions) {
+				pos = positions[i]
+			} else {
+				pos = -1 // shouldn't happen
 			}
 
-			// Add newline between lines (but not after the last line)
-			if lineIdx < endLine-1 {
-				result.WriteRune('\n')
+			if pos >= 0 && pos < len(userInput) {
+				// Already typed
+				if pos < len(target) && userInput[pos] == target[pos] {
+					result.WriteString(s.Correct.Render(charStr))
+				} else {
+					result.WriteString(s.Incorrect.Render(charStr))
+				}
+			} else if pos == cursorPos {
+				// Cursor position
+				if cursorVisible {
+					result.WriteString(s.Cursor.Render(charStr))
+				} else {
+					result.WriteString(s.CursorHidden.Render(charStr))
+				}
+			} else {
+				// Not yet typed
+				result.WriteString(s.Pending.Render(charStr))
 			}
 		}
 
-		lineStartPos = lineEndPos
+		// Add newline between lines (but not after the last line)
+		if lineIdx < endLine-1 {
+			result.WriteRune('\n')
+		}
 	}
 
 	return result.String()
 }
 
-// splitIntoLines splits text into lines based on max width (no ANSI codes yet)
-func (s *Styles) splitIntoLines(text string, maxWidth int) []string {
+// splitIntoLinesWithPositions splits text into lines and tracks the original position of each character
+func (s *Styles) splitIntoLinesWithPositions(text string, maxWidth int) ([]string, [][]int) {
 	var lines []string
+	var linePositions [][]int
 	var currentLine strings.Builder
+	var currentPositions []int
 	visualLen := 0
+	pos := 0
 
 	for _, r := range text {
 		// Handle explicit newlines
 		if r == '\n' {
 			lines = append(lines, currentLine.String())
+			linePositions = append(linePositions, currentPositions)
 			currentLine.Reset()
+			currentPositions = nil
 			visualLen = 0
+			pos++
 			continue
 		}
 
 		// Wrap at max width on spaces
 		if visualLen >= maxWidth && r == ' ' {
 			lines = append(lines, currentLine.String())
+			linePositions = append(linePositions, currentPositions)
 			currentLine.Reset()
+			currentPositions = nil
 			visualLen = 0
+			// Include the space at the start of the new line to maintain position tracking
+			currentLine.WriteRune(r)
+			currentPositions = append(currentPositions, pos)
+			visualLen++
+			pos++
 			continue
 		}
 
 		currentLine.WriteRune(r)
+		currentPositions = append(currentPositions, pos)
 		visualLen++
+		pos++
 	}
 
 	// Add the last line if there's content
 	if currentLine.Len() > 0 {
 		lines = append(lines, currentLine.String())
+		linePositions = append(linePositions, currentPositions)
 	}
 
+	return lines, linePositions
+}
+
+// splitIntoLines splits text into lines based on max width (no ANSI codes yet)
+// Note: This function is kept for backward compatibility but splitIntoLinesWithPositions
+// should be preferred for accurate position tracking
+func (s *Styles) splitIntoLines(text string, maxWidth int) []string {
+	lines, _ := s.splitIntoLinesWithPositions(text, maxWidth)
 	return lines
 }
 
@@ -305,36 +343,21 @@ func (s *Styles) FindLineForPosition(text string, pos int, maxWidth int) int {
 		return 0
 	}
 
-	lineIdx := 0
-	visualLen := 0
-	currentPos := 0
+	_, linePositions := s.splitIntoLinesWithPositions(text, maxWidth)
 
-	for _, r := range text {
-		if currentPos == pos {
-			return lineIdx
+	for lineIdx, positions := range linePositions {
+		for _, p := range positions {
+			if p == pos {
+				return lineIdx
+			}
 		}
-
-		// Handle explicit newlines
-		if r == '\n' {
-			lineIdx++
-			visualLen = 0
-			currentPos++
-			continue
-		}
-
-		// Wrap at max width on spaces
-		if visualLen >= maxWidth && r == ' ' {
-			lineIdx++
-			visualLen = 0
-			currentPos++
-			continue
-		}
-
-		visualLen++
-		currentPos++
 	}
 
-	return lineIdx
+	// If position not found, return last line
+	if len(linePositions) > 0 {
+		return len(linePositions) - 1
+	}
+	return 0
 }
 
 // Header renders a consistent header across screens

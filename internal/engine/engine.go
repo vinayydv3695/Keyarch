@@ -8,29 +8,29 @@ import (
 type TestMode string
 
 const (
-	ModeTimer   TestMode = "timer"
-	ModeWords   TestMode = "words"
-	ModeQuote   TestMode = "quote"
-	ModeCode    TestMode = "code"
+	ModeTimer TestMode = "timer"
+	ModeWords TestMode = "words"
+	ModeQuote TestMode = "quote"
+	ModeCode  TestMode = "code"
 )
 
 // Engine manages the typing test logic
 type Engine struct {
-	TargetText     string
-	UserInput      string
-	StartTime      time.Time
-	EndTime        time.Time
-	IsStarted      bool
-	IsFinished     bool
-	Mode           TestMode
-	Duration       int // for timer mode (seconds)
-	WordCount      int // for word mode
-	CurrentPos     int
-	Mistakes       int
-	MistakeMap     map[int]bool // tracks position of mistakes
-	KeyStrokes     map[rune]KeyStat
-	WPMHistory     []float64 // WPM samples over time
-	LastWPMUpdate  time.Time
+	TargetText    string
+	UserInput     string
+	StartTime     time.Time
+	EndTime       time.Time
+	IsStarted     bool
+	IsFinished    bool
+	Mode          TestMode
+	Duration      int // for timer mode (seconds)
+	WordCount     int // for word mode
+	CurrentPos    int
+	Mistakes      int
+	MistakeMap    map[int]bool // tracks position of mistakes
+	KeyStrokes    map[rune]KeyStat
+	WPMHistory    []float64 // WPM samples over time
+	LastWPMUpdate time.Time
 }
 
 // KeyStat tracks statistics for individual keys
@@ -86,12 +86,12 @@ func (e *Engine) ProcessInput(char rune) {
 
 	// Add character
 	e.UserInput += string(char)
-	
+
 	// Track if it's correct or incorrect
 	if e.CurrentPos < len(e.TargetText) {
 		expected := rune(e.TargetText[e.CurrentPos])
 		stat := e.KeyStrokes[expected]
-		
+
 		if char == expected {
 			stat.Correct++
 		} else {
@@ -99,17 +99,44 @@ func (e *Engine) ProcessInput(char rune) {
 			e.Mistakes++
 			e.MistakeMap[e.CurrentPos] = true
 		}
-		
+
 		e.KeyStrokes[expected] = stat
 	}
-	
+
 	e.CurrentPos = len(e.UserInput)
+
+	// Auto-skip leading whitespace after newline (for code mode)
+	// This makes typing code much more comfortable - users don't have to type indentation
+	if e.Mode == ModeCode && char == '\n' {
+		e.skipLeadingWhitespace()
+	}
 
 	// Check if test is complete
 	if e.Mode == ModeWords && e.CountWords() >= e.WordCount {
 		e.Finish()
 	} else if len(e.UserInput) >= len(e.TargetText) {
 		e.Finish()
+	}
+}
+
+// skipLeadingWhitespace automatically skips spaces/tabs at the start of a new line
+// This is used in code mode to avoid tedious indentation typing
+func (e *Engine) skipLeadingWhitespace() {
+	for e.CurrentPos < len(e.TargetText) {
+		nextChar := rune(e.TargetText[e.CurrentPos])
+		if nextChar == ' ' || nextChar == '\t' {
+			// Auto-add the whitespace character
+			e.UserInput += string(nextChar)
+
+			// Track as correct (auto-completed)
+			stat := e.KeyStrokes[nextChar]
+			stat.Correct++
+			e.KeyStrokes[nextChar] = stat
+
+			e.CurrentPos = len(e.UserInput)
+		} else {
+			break
+		}
 	}
 }
 
