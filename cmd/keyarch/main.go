@@ -10,6 +10,7 @@ import (
 	"github.com/vinayydv3695/keyarch/internal/config"
 	"github.com/vinayydv3695/keyarch/internal/data"
 	"github.com/vinayydv3695/keyarch/internal/engine"
+	"github.com/vinayydv3695/keyarch/internal/sound"
 	"github.com/vinayydv3695/keyarch/internal/storage"
 	"github.com/vinayydv3695/keyarch/internal/tui/customtext"
 	"github.com/vinayydv3695/keyarch/internal/tui/duration"
@@ -21,7 +22,9 @@ import (
 	"github.com/vinayydv3695/keyarch/internal/tui/summary"
 	"github.com/vinayydv3695/keyarch/internal/tui/test"
 	"github.com/vinayydv3695/keyarch/internal/tui/theme"
+	"github.com/vinayydv3695/keyarch/internal/tui/training"
 	"github.com/vinayydv3695/keyarch/internal/tui/wordcount"
+	"github.com/vinayydv3695/keyarch/internal/tui/wordlist"
 )
 
 var (
@@ -131,18 +134,27 @@ func runDirectMode(cfg *config.Config, db *storage.DB) {
 
 // App represents the main application
 type App struct {
-	cfg          *config.Config
-	db           *storage.DB
-	state        string
-	lastTestText string // Store last test text for replay
+	cfg            *config.Config
+	db             *storage.DB
+	state          string
+	lastTestText   string        // Store last test text for replay
+	soundPlayer    *sound.Player // Sound player
+	customWordList string        // Current custom word list
 }
 
 // NewApp creates a new application
 func NewApp(cfg *config.Config, db *storage.DB) *App {
+	// Create sound player based on config
+	profile := sound.Profile(cfg.SoundProfile)
+	if profile == "" {
+		profile = sound.ProfileSubtle
+	}
+
 	return &App{
-		cfg:   cfg,
-		db:    db,
-		state: "home",
+		cfg:         cfg,
+		db:          db,
+		state:       "home",
+		soundPlayer: sound.NewPlayerWithProfile(cfg.Sound, profile),
 	}
 }
 
@@ -185,6 +197,16 @@ func (a *App) Run() error {
 				return err
 			}
 
+		case "training":
+			if err := a.runTraining(); err != nil {
+				return err
+			}
+
+		case "wordlists":
+			if err := a.runWordLists(); err != nil {
+				return err
+			}
+
 		case "stats":
 			if err := a.runStats(); err != nil {
 				return err
@@ -195,22 +217,22 @@ func (a *App) Run() error {
 				return err
 			}
 
-	case "themes":
-		if err := a.runThemes(); err != nil {
-			return err
+		case "themes":
+			if err := a.runThemes(); err != nil {
+				return err
+			}
+
+		case "settings":
+			if err := a.runSettings(); err != nil {
+				return err
+			}
+
+		case "quit":
+			return nil
+
+		default:
+			a.state = "home"
 		}
-
-	case "settings":
-		if err := a.runSettings(); err != nil {
-			return err
-		}
-
-	case "quit":
-		return nil
-
-	default:
-		a.state = "home"
-	}
 	}
 }
 
@@ -238,6 +260,10 @@ func (a *App) runHome() error {
 		a.state = "quote"
 	case "Code Mode":
 		a.state = "code"
+	case "Training":
+		a.state = "training"
+	case "Word Lists":
+		a.state = "wordlists"
 	case "Statistics":
 		a.state = "stats"
 	case "Progress":
@@ -256,7 +282,7 @@ func (a *App) runHome() error {
 }
 
 func (a *App) runQuickTest() error {
-	gen := data.NewGenerator()
+	gen := a.getGenerator()
 	text := gen.GenerateByTime(15, "medium")
 	eng := engine.New(text, engine.ModeTimer, 15, 0)
 
@@ -281,7 +307,7 @@ func (a *App) runTimedTest() error {
 		return nil
 	}
 
-	gen := data.NewGenerator()
+	gen := a.getGenerator()
 	text := gen.GenerateByTime(selectedDuration, "medium")
 	eng := engine.New(text, engine.ModeTimer, selectedDuration, 0)
 
@@ -306,7 +332,7 @@ func (a *App) runWordTest() error {
 		return nil
 	}
 
-	gen := data.NewGenerator()
+	gen := a.getGenerator()
 	text := gen.GenerateWords(selectedCount, "medium")
 	eng := engine.New(text, engine.ModeWords, 0, selectedCount)
 
@@ -323,7 +349,7 @@ func (a *App) runCustomText() error {
 	}
 
 	customModel := finalModel.(customtext.Model)
-	
+
 	// If canceled, go back
 	if customModel.Canceled() || !customModel.Done() {
 		a.state = "home"
@@ -374,10 +400,19 @@ func (a *App) runCodeMode() error {
 	return a.runTest(eng)
 }
 
+// getGenerator returns a text generator, using custom word list if configured
+func (a *App) getGenerator() *data.GeneratorWithCustom {
+	customList := a.customWordList
+	if customList == "" {
+		customList = a.cfg.CustomWordList
+	}
+	return data.NewGeneratorWithCustom(customList)
+}
+
 func (a *App) runTest(eng *engine.Engine) error {
 	// Store the test text for potential replay
 	a.lastTestText = eng.TargetText
-	
+
 	// Run the test
 	m := test.New(eng, a.cfg)
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -387,9 +422,11 @@ func (a *App) runTest(eng *engine.Engine) error {
 	}
 
 	testModel := finalModel.(test.Model)
-	
-	// If test was finished, show summary
+
+	// Play success sound if test completed
 	if testModel.Finished() && testModel.Engine().IsFinished {
+		a.soundPlayer.PlaySuccess()
+
 		s := summary.New(testModel.Engine(), a.cfg, a.db)
 		p2 := tea.NewProgram(s, tea.WithAltScreen())
 		summaryFinal, err := p2.Run()
@@ -398,14 +435,14 @@ func (a *App) runTest(eng *engine.Engine) error {
 		}
 
 		summaryModel := summaryFinal.(summary.Model)
-		
+
 		// Check if user wants to replay
 		if summaryModel.ShouldReplay() {
 			// Replay with the same text
 			replayEng := engine.New(a.lastTestText, eng.Mode, eng.Duration, eng.WordCount)
 			return a.runTest(replayEng)
 		}
-		
+
 		if summaryModel.Done() {
 			a.state = "home"
 		}
@@ -483,7 +520,76 @@ func (a *App) runSettings() error {
 		newCfg, _ := config.Load()
 		if newCfg != nil {
 			a.cfg = newCfg
+			// Update sound player with new settings
+			profile := sound.Profile(newCfg.SoundProfile)
+			if profile == "" {
+				profile = sound.ProfileSubtle
+			}
+			a.soundPlayer.SetEnabled(newCfg.Sound)
+			a.soundPlayer.SetProfile(profile)
 		}
+		a.state = "home"
+	}
+
+	return nil
+}
+
+func (a *App) runTraining() error {
+	m := training.New(a.cfg, a.db)
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	finalModel, err := p.Run()
+	if err != nil {
+		return err
+	}
+
+	trainingModel := finalModel.(training.Model)
+	selected := trainingModel.Selected()
+
+	if selected == "back" || selected == "" {
+		a.state = "home"
+		return nil
+	}
+
+	// Get the selected lesson and run it
+	lesson := trainingModel.GetSelectedLesson()
+	if lesson == nil {
+		a.state = "home"
+		return nil
+	}
+
+	// Generate lesson text
+	text := training.GenerateLessonText(lesson, 50)
+	if text == "" {
+		a.state = "home"
+		return nil
+	}
+
+	eng := engine.New(text, engine.ModeWords, 0, 50)
+	return a.runTest(eng)
+}
+
+func (a *App) runWordLists() error {
+	m := wordlist.New(a.cfg)
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	finalModel, err := p.Run()
+	if err != nil {
+		return err
+	}
+
+	wordlistModel := finalModel.(wordlist.Model)
+	selected := wordlistModel.Selected()
+
+	switch selected {
+	case "back", "":
+		a.state = "home"
+	case "default":
+		a.customWordList = ""
+		a.state = "home"
+	default:
+		// Set the custom word list and go back to home
+		a.customWordList = selected
+		a.cfg.CustomWordList = selected
+		a.cfg.Save()
 		a.state = "home"
 	}
 

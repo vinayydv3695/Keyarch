@@ -6,19 +6,32 @@ import (
 	"path/filepath"
 )
 
+// SoundProfile represents different sound effect types
+type SoundProfile string
+
+const (
+	SoundProfileOff        SoundProfile = "off"
+	SoundProfileSubtle     SoundProfile = "subtle"
+	SoundProfileMechanical SoundProfile = "mechanical"
+)
+
 // Config represents the application configuration
 type Config struct {
-	Theme    string `json:"theme"`
-	Sound    bool   `json:"sound"`
-	BlindMode bool  `json:"blind_mode"`
+	Theme          string       `json:"theme"`
+	Sound          bool         `json:"sound"`
+	SoundProfile   SoundProfile `json:"sound_profile"`
+	BlindMode      bool         `json:"blind_mode"`
+	CustomWordList string       `json:"custom_word_list"` // Path to custom word list file
 }
 
 // Default returns the default configuration
 func Default() *Config {
 	return &Config{
-		Theme:    "catppuccin-mocha",
-		Sound:    false,
-		BlindMode: false,
+		Theme:          "catppuccin-mocha",
+		Sound:          false,
+		SoundProfile:   SoundProfileSubtle,
+		BlindMode:      false,
+		CustomWordList: "",
 	}
 }
 

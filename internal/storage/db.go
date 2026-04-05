@@ -337,7 +337,7 @@ func (db *DB) SaveGoal(goal GoalRecord) error {
 	INSERT OR REPLACE INTO goals (id, type, target, current, completed, start_date, end_date)
 	VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err := db.conn.Exec(query, goal.ID, goal.Type, goal.Target, goal.Current, 
+	_, err := db.conn.Exec(query, goal.ID, goal.Type, goal.Target, goal.Current,
 		goal.Completed, goal.StartDate, goal.EndDate)
 	return err
 }
@@ -355,7 +355,7 @@ func (db *DB) GetGoals() ([]GoalRecord, error) {
 	for rows.Next() {
 		var goal GoalRecord
 		var startDateStr, endDateStr string
-		if err := rows.Scan(&goal.ID, &goal.Type, &goal.Target, &goal.Current, 
+		if err := rows.Scan(&goal.ID, &goal.Type, &goal.Target, &goal.Current,
 			&goal.Completed, &startDateStr, &endDateStr); err != nil {
 			return nil, err
 		}
@@ -406,3 +406,114 @@ func (db *DB) GetModeStats() (map[string]int, error) {
 	return stats, nil
 }
 
+// SaveKeyStats saves key statistics from a test
+func (db *DB) SaveKeyStats(testID int64, keyStats map[rune]struct{ Correct, Incorrect int }) error {
+	query := `INSERT INTO key_stats (test_id, key, correct, incorrect) VALUES (?, ?, ?, ?)`
+
+	for key, stat := range keyStats {
+		_, err := db.conn.Exec(query, testID, string(key), stat.Correct, stat.Incorrect)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// GetWeakKeys returns the keys with lowest accuracy across all tests
+func (db *DB) GetWeakKeys(limit int) ([]WeakKeyRecord, error) {
+	query := `
+	SELECT 
+		key,
+		SUM(correct) as total_correct,
+		SUM(incorrect) as total_incorrect,
+		SUM(correct) + SUM(incorrect) as total,
+		CAST(SUM(correct) AS REAL) / (SUM(correct) + SUM(incorrect)) * 100 as accuracy
+	FROM key_stats
+	GROUP BY key
+	HAVING total >= 10
+	ORDER BY accuracy ASC
+	LIMIT ?
+	`
+
+	rows, err := db.conn.Query(query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var keys []WeakKeyRecord
+	for rows.Next() {
+		var k WeakKeyRecord
+		if err := rows.Scan(&k.Key, &k.Correct, &k.Incorrect, &k.Total, &k.Accuracy); err != nil {
+			return nil, err
+		}
+		keys = append(keys, k)
+	}
+
+	return keys, nil
+}
+
+// GetProgressHistory returns daily progress history for the last N days
+func (db *DB) GetProgressHistory(days int) ([]ProgressHistory, error) {
+	query := `
+	SELECT 
+		DATE(created_at) as date,
+		AVG(wpm) as avg_wpm,
+		AVG(accuracy) as avg_accuracy,
+		COUNT(*) as test_count
+	FROM test_results
+	WHERE created_at >= datetime('now', '-' || ? || ' days')
+	GROUP BY DATE(created_at)
+	ORDER BY date ASC
+	`
+
+	rows, err := db.conn.Query(query, days)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var history []ProgressHistory
+	for rows.Next() {
+		var h ProgressHistory
+		var dateStr string
+		if err := rows.Scan(&dateStr, &h.AvgWPM, &h.AvgAccuracy, &h.TestCount); err != nil {
+			return nil, err
+		}
+		// Parse date
+		for _, layout := range []string{"2006-01-02", "2006-01-02 15:04:05"} {
+			if t, err := time.Parse(layout, dateStr); err == nil {
+				h.Date = t
+				break
+			}
+		}
+		history = append(history, h)
+	}
+
+	return history, nil
+}
+
+// GetLastTestID returns the ID of the most recently inserted test
+func (db *DB) GetLastTestID() (int64, error) {
+	var id int64
+	err := db.conn.QueryRow("SELECT last_insert_rowid()").Scan(&id)
+	return id, err
+}
+
+// SaveResultWithKeys saves a test result and its key statistics
+func (db *DB) SaveResultWithKeys(result *TestResult, keyStats map[rune]struct{ Correct, Incorrect int }) error {
+	// Save the test result
+	if err := db.SaveResult(result); err != nil {
+		return err
+	}
+
+	// Get the last inserted ID
+	testID, err := db.GetLastTestID()
+	if err != nil {
+		return err
+	}
+
+	// Save key stats
+	return db.SaveKeyStats(testID, keyStats)
+}

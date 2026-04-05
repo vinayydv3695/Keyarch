@@ -22,8 +22,10 @@ type Model struct {
 	achievements []achievements.Achievement
 	dailyGoals   []goals.Goal
 	weeklyGoals  []goals.Goal
+	weakKeys     []storage.WeakKeyRecord
+	history      []storage.ProgressHistory
 	selected     string
-	tab          int // 0=achievements, 1=daily goals, 2=weekly goals
+	tab          int // 0=achievements, 1=daily goals, 2=weekly goals, 3=weak keys
 }
 
 func New(cfg *config.Config, db *storage.DB) Model {
@@ -58,10 +60,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case dataLoadedMsg:
 		// Load achievements
 		m.achievements = m.loadAchievements()
-		
+
 		// Load goals
 		m.dailyGoals, m.weeklyGoals = m.loadGoals()
-		
+
+		// Load weak keys
+		weakKeys, err := m.db.GetWeakKeys(10)
+		if err == nil {
+			m.weakKeys = weakKeys
+		}
+
+		// Load progress history
+		history, err := m.db.GetProgressHistory(30)
+		if err == nil {
+			m.history = history
+		}
+
 		return m, nil
 
 	case tea.KeyMsg:
@@ -75,10 +89,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "tab", "right", "l":
-			m.tab = (m.tab + 1) % 3
+			m.tab = (m.tab + 1) % 4
 
 		case "shift+tab", "left", "h":
-			m.tab = (m.tab - 1 + 3) % 3
+			m.tab = (m.tab - 1 + 4) % 4
 
 		case "enter", " ":
 			m.selected = "back"
@@ -101,11 +115,11 @@ func (m Model) View() string {
 	s += "\n\n"
 
 	// Tabs
-	tabs := []string{"Achievements", "Daily Goals", "Weekly Goals"}
+	tabs := []string{"Achievements", "Daily Goals", "Weekly Goals", "Weak Keys"}
 	tabStr := ""
 	for i, tab := range tabs {
 		if i == m.tab {
-			tabStr += m.styles.Primary.Render("▶ " + tab + " ◀") + "  "
+			tabStr += m.styles.Primary.Render("[ "+tab+" ]") + "  "
 		} else {
 			tabStr += m.styles.Muted.Render(tab) + "  "
 		}
@@ -120,6 +134,8 @@ func (m Model) View() string {
 		s += m.renderGoals(m.dailyGoals, "Daily")
 	case 2:
 		s += m.renderGoals(m.weeklyGoals, "Weekly")
+	case 3:
+		s += m.renderWeakKeys()
 	}
 
 	s += "\n"
@@ -130,19 +146,19 @@ func (m Model) View() string {
 
 func (m Model) renderAchievements() string {
 	var s string
-	
+
 	unlocked := achievements.GetUnlockedCount(m.achievements)
 	total := len(m.achievements)
-	
+
 	s += m.styles.Subtitle.Render(fmt.Sprintf("Unlocked: %d/%d\n\n", unlocked, total))
 
 	// Group by category
 	categories := []string{"speed", "accuracy", "dedication", "consistency"}
 	categoryNames := map[string]string{
-		"speed":       "⚡ Speed",
-		"accuracy":    "🎯 Accuracy",
-		"dedication":  "📚 Dedication",
-		"consistency": "🔥 Consistency",
+		"speed":       "Speed",
+		"accuracy":    "Accuracy",
+		"dedication":  "Dedication",
+		"consistency": "Consistency",
 	}
 
 	for _, cat := range categories {
@@ -152,15 +168,15 @@ func (m Model) renderAchievements() string {
 		}
 
 		s += m.styles.Primary.Bold(true).Render(categoryNames[cat]) + "\n"
-		
+
 		for _, achievement := range catAchievements {
 			if achievement.Hidden && !achievement.Unlocked {
 				continue
 			}
 
-			line := achievement.Icon + " " + achievement.Name
+			line := "[" + achievement.Icon + "] " + achievement.Name
 			if achievement.Unlocked {
-				line = m.styles.Success.Render(line + " ✓")
+				line = m.styles.Success.Render(line + " [done]")
 			} else {
 				line = m.styles.Muted.Render(line)
 				line += m.styles.Muted.Render(fmt.Sprintf(" (%d/%d)", achievement.Progress, achievement.Target))
@@ -176,19 +192,19 @@ func (m Model) renderAchievements() string {
 
 func (m Model) renderGoals(goalsList []goals.Goal, period string) string {
 	var s string
-	
+
 	completed := goals.GetCompletedCount(goalsList)
 	total := len(goalsList)
-	
+
 	s += m.styles.Subtitle.Render(fmt.Sprintf("%s Goals: %d/%d completed\n\n", period, completed, total))
 
 	for _, goal := range goalsList {
 		progress := goals.GetProgress(goal)
-		
+
 		// Goal name and icon
-		line := goal.Icon + " " + goal.Name
+		line := "[" + goal.Icon + "] " + goal.Name
 		if goal.Completed {
-			line = m.styles.Success.Render(line + " ✓")
+			line = m.styles.Success.Render(line + " [done]")
 		} else {
 			line = m.styles.Primary.Render(line)
 		}
@@ -201,7 +217,7 @@ func (m Model) renderGoals(goalsList []goals.Goal, period string) string {
 		barWidth := 30
 		filledWidth := (progress * barWidth) / 100
 		bar := strings.Repeat("█", filledWidth) + strings.Repeat("░", barWidth-filledWidth)
-		
+
 		if goal.Completed {
 			s += "  " + m.styles.Success.Render(bar) + " " + m.styles.Success.Render(fmt.Sprintf("%d%%", progress)) + "\n"
 		} else {
@@ -218,16 +234,61 @@ func (m Model) renderGoals(goalsList []goals.Goal, period string) string {
 		if goal.Unit == "percent" {
 			unitStr = "%"
 		}
-		
+
 		s += "  " + m.styles.Muted.Render(fmt.Sprintf("%d/%d %s", goal.Current, goal.Target, unitStr)) + "\n\n"
 	}
 
 	return s
 }
 
+func (m Model) renderWeakKeys() string {
+	var s string
+
+	if len(m.weakKeys) == 0 {
+		s += m.styles.Muted.Render("No key statistics available yet.\n")
+		s += m.styles.Muted.Render("Complete some typing tests to see your weak keys.\n")
+		return s
+	}
+
+	s += m.styles.Subtitle.Render("Keys that need practice (lowest accuracy):\n\n")
+
+	// Table header
+	header := fmt.Sprintf("  %-8s  %-12s  %-12s  %-10s", "Key", "Accuracy", "Total Typed", "Incorrect")
+	s += m.styles.Primary.Bold(true).Render(header) + "\n"
+	s += m.styles.Muted.Render("  "+strings.Repeat("-", 46)) + "\n"
+
+	// Table rows
+	for _, wk := range m.weakKeys {
+		keyDisplay := wk.Key
+		if wk.Key == " " {
+			keyDisplay = "Space"
+		}
+
+		accuracy := fmt.Sprintf("%.1f%%", wk.Accuracy)
+		total := fmt.Sprintf("%d", wk.Total)
+		incorrect := fmt.Sprintf("%d", wk.Incorrect)
+
+		// Color code based on accuracy
+		var line string
+		if wk.Accuracy < 80 {
+			line = m.styles.Incorrect.Render(fmt.Sprintf("  %-8s  %-12s  %-12s  %-10s", keyDisplay, accuracy, total, incorrect))
+		} else if wk.Accuracy < 90 {
+			line = m.styles.Accent.Render(fmt.Sprintf("  %-8s  %-12s  %-12s  %-10s", keyDisplay, accuracy, total, incorrect))
+		} else {
+			line = m.styles.Success.Render(fmt.Sprintf("  %-8s  %-12s  %-12s  %-10s", keyDisplay, accuracy, total, incorrect))
+		}
+		s += line + "\n"
+	}
+
+	s += "\n"
+	s += m.styles.Muted.Render("Tip: Use Training mode to practice your weak keys!\n")
+
+	return s
+}
+
 func (m Model) loadAchievements() []achievements.Achievement {
 	allAchievements := achievements.AllAchievements()
-	
+
 	// Get unlocked achievement IDs from database
 	unlockedIDs, err := m.db.GetUnlockedAchievements()
 	if err != nil {
@@ -255,14 +316,14 @@ func (m Model) loadAchievements() []achievements.Achievement {
 
 		// Calculate progress
 		statsMap := map[string]interface{}{
-			"best_wpm":         stats.BestWPM,
-			"best_accuracy":    stats.BestAccuracy,
-			"total_tests":      stats.TotalTests,
-			"current_streak":   stats.CurrentStreak,
-			"total_time":       stats.TotalTime,
-			"modes_completed":  len(modeStats),
-			"code_tests":       modeStats["code"],
-			"quote_tests":      modeStats["quote"],
+			"best_wpm":        stats.BestWPM,
+			"best_accuracy":   stats.BestAccuracy,
+			"total_tests":     stats.TotalTests,
+			"current_streak":  stats.CurrentStreak,
+			"total_time":      stats.TotalTime,
+			"modes_completed": len(modeStats),
+			"code_tests":      modeStats["code"],
+			"quote_tests":     modeStats["quote"],
 		}
 
 		unlocked, progress := achievements.CheckAchievement(allAchievements[i], statsMap)
@@ -288,7 +349,7 @@ func (m Model) loadGoals() ([]goals.Goal, []goals.Goal) {
 
 	// Convert to goal objects
 	var daily, weekly []goals.Goal
-	
+
 	if len(savedGoals) == 0 {
 		return goals.DefaultDailyGoals(), goals.DefaultWeeklyGoals()
 	}
@@ -308,7 +369,7 @@ func (m Model) loadGoals() ([]goals.Goal, []goals.Goal) {
 		// Set name, description, unit, icon based on ID
 		defaultDaily := goals.DefaultDailyGoals()
 		defaultWeekly := goals.DefaultWeeklyGoals()
-		
+
 		for _, d := range append(defaultDaily, defaultWeekly...) {
 			if d.ID == goal.ID {
 				goal.Name = d.Name

@@ -13,9 +13,9 @@ type Achievement struct {
 	Category    string    `json:"category"` // speed, accuracy, consistency, dedication
 	Unlocked    bool      `json:"unlocked"`
 	UnlockedAt  time.Time `json:"unlocked_at,omitempty"`
-	Progress    int       `json:"progress"`     // current progress
-	Target      int       `json:"target"`       // target to unlock
-	Hidden      bool      `json:"hidden"`       // hide until unlocked
+	Progress    int       `json:"progress"` // current progress
+	Target      int       `json:"target"`   // target to unlock
+	Hidden      bool      `json:"hidden"`   // hide until unlocked
 }
 
 // AllAchievements returns all available achievements
@@ -26,7 +26,7 @@ func AllAchievements() []Achievement {
 			ID:          "speed_rookie",
 			Name:        "Speed Rookie",
 			Description: "Reach 40 WPM",
-			Icon:        "🚀",
+			Icon:        "*",
 			Category:    "speed",
 			Target:      40,
 		},
@@ -34,7 +34,7 @@ func AllAchievements() []Achievement {
 			ID:          "speed_intermediate",
 			Name:        "Speed Demon",
 			Description: "Reach 60 WPM",
-			Icon:        "⚡",
+			Icon:        "**",
 			Category:    "speed",
 			Target:      60,
 		},
@@ -42,7 +42,7 @@ func AllAchievements() []Achievement {
 			ID:          "speed_advanced",
 			Name:        "Lightning Fingers",
 			Description: "Reach 80 WPM",
-			Icon:        "🌟",
+			Icon:        "***",
 			Category:    "speed",
 			Target:      80,
 		},
@@ -50,7 +50,7 @@ func AllAchievements() []Achievement {
 			ID:          "speed_expert",
 			Name:        "Typing Master",
 			Description: "Reach 100 WPM",
-			Icon:        "👑",
+			Icon:        "****",
 			Category:    "speed",
 			Target:      100,
 		},
@@ -58,7 +58,7 @@ func AllAchievements() []Achievement {
 			ID:          "speed_godlike",
 			Name:        "Keyboard God",
 			Description: "Reach 120 WPM",
-			Icon:        "🔥",
+			Icon:        "*****",
 			Category:    "speed",
 			Target:      120,
 			Hidden:      true,
@@ -69,7 +69,7 @@ func AllAchievements() []Achievement {
 			ID:          "accuracy_good",
 			Name:        "Accuracy Focused",
 			Description: "Achieve 95% accuracy",
-			Icon:        "🎯",
+			Icon:        "+",
 			Category:    "accuracy",
 			Target:      95,
 		},
@@ -77,7 +77,7 @@ func AllAchievements() []Achievement {
 			ID:          "accuracy_great",
 			Name:        "Precision Typist",
 			Description: "Achieve 98% accuracy",
-			Icon:        "💎",
+			Icon:        "++",
 			Category:    "accuracy",
 			Target:      98,
 		},
@@ -85,7 +85,7 @@ func AllAchievements() []Achievement {
 			ID:          "accuracy_perfect",
 			Name:        "Flawless",
 			Description: "Achieve 100% accuracy",
-			Icon:        "✨",
+			Icon:        "+++",
 			Category:    "accuracy",
 			Target:      100,
 		},
@@ -95,7 +95,7 @@ func AllAchievements() []Achievement {
 			ID:          "tests_10",
 			Name:        "Getting Started",
 			Description: "Complete 10 tests",
-			Icon:        "📝",
+			Icon:        "#",
 			Category:    "dedication",
 			Target:      10,
 		},
@@ -103,7 +103,7 @@ func AllAchievements() []Achievement {
 			ID:          "tests_50",
 			Name:        "Committed",
 			Description: "Complete 50 tests",
-			Icon:        "📚",
+			Icon:        "##",
 			Category:    "dedication",
 			Target:      50,
 		},
@@ -111,7 +111,7 @@ func AllAchievements() []Achievement {
 			ID:          "tests_100",
 			Name:        "Century Club",
 			Description: "Complete 100 tests",
-			Icon:        "🎖️",
+			Icon:        "###",
 			Category:    "dedication",
 			Target:      100,
 		},
@@ -119,7 +119,7 @@ func AllAchievements() []Achievement {
 			ID:          "tests_500",
 			Name:        "Dedicated Typist",
 			Description: "Complete 500 tests",
-			Icon:        "🏆",
+			Icon:        "####",
 			Category:    "dedication",
 			Target:      500,
 			Hidden:      true,
@@ -128,7 +128,7 @@ func AllAchievements() []Achievement {
 			ID:          "tests_1000",
 			Name:        "Legend",
 			Description: "Complete 1000 tests",
-			Icon:        "💫",
+			Icon:        "#####",
 			Category:    "dedication",
 			Target:      1000,
 			Hidden:      true,
@@ -139,7 +139,7 @@ func AllAchievements() []Achievement {
 			ID:          "streak_3",
 			Name:        "On a Roll",
 			Description: "3-day streak",
-			Icon:        "🔥",
+			Icon:        "~",
 			Category:    "consistency",
 			Target:      3,
 		},
@@ -147,7 +147,7 @@ func AllAchievements() []Achievement {
 			ID:          "streak_7",
 			Name:        "Week Warrior",
 			Description: "7-day streak",
-			Icon:        "⚡",
+			Icon:        "~~",
 			Category:    "consistency",
 			Target:      7,
 		},
@@ -155,7 +155,7 @@ func AllAchievements() []Achievement {
 			ID:          "streak_30",
 			Name:        "Monthly Master",
 			Description: "30-day streak",
-			Icon:        "🌟",
+			Icon:        "~~~",
 			Category:    "consistency",
 			Target:      30,
 		},
@@ -163,7 +163,7 @@ func AllAchievements() []Achievement {
 			ID:          "streak_100",
 			Name:        "Unstoppable",
 			Description: "100-day streak",
-			Icon:        "👑",
+			Icon:        "~~~~",
 			Category:    "consistency",
 			Target:      100,
 			Hidden:      true,
@@ -174,7 +174,7 @@ func AllAchievements() []Achievement {
 			ID:          "mode_all",
 			Name:        "Jack of All Modes",
 			Description: "Complete tests in all modes",
-			Icon:        "🎨",
+			Icon:        "@",
 			Category:    "dedication",
 			Target:      4, // timer, words, quote, code
 		},
@@ -182,7 +182,7 @@ func AllAchievements() []Achievement {
 			ID:          "code_master",
 			Name:        "Code Master",
 			Description: "Complete 20 code tests",
-			Icon:        "💻",
+			Icon:        "</>",
 			Category:    "dedication",
 			Target:      20,
 		},
@@ -190,7 +190,7 @@ func AllAchievements() []Achievement {
 			ID:          "quote_lover",
 			Name:        "Quote Enthusiast",
 			Description: "Complete 20 quote tests",
-			Icon:        "💭",
+			Icon:        "\"",
 			Category:    "dedication",
 			Target:      20,
 		},
@@ -200,7 +200,7 @@ func AllAchievements() []Achievement {
 			ID:          "time_1hour",
 			Name:        "Hour Hand",
 			Description: "Type for 1 hour total",
-			Icon:        "⏱️",
+			Icon:        "[1h]",
 			Category:    "dedication",
 			Target:      3600, // seconds
 		},
@@ -208,7 +208,7 @@ func AllAchievements() []Achievement {
 			ID:          "time_10hours",
 			Name:        "Practice Makes Perfect",
 			Description: "Type for 10 hours total",
-			Icon:        "⌚",
+			Icon:        "[10h]",
 			Category:    "dedication",
 			Target:      36000,
 			Hidden:      true,
@@ -233,35 +233,35 @@ func CheckAchievement(achievement Achievement, stats map[string]interface{}) (bo
 
 	case "dedication":
 		// Check test count
-		if achievement.ID == "tests_10" || achievement.ID == "tests_50" || 
-		   achievement.ID == "tests_100" || achievement.ID == "tests_500" || 
-		   achievement.ID == "tests_1000" {
+		if achievement.ID == "tests_10" || achievement.ID == "tests_50" ||
+			achievement.ID == "tests_100" || achievement.ID == "tests_500" ||
+			achievement.ID == "tests_1000" {
 			if totalTests, ok := stats["total_tests"].(int); ok {
 				return totalTests >= achievement.Target, totalTests
 			}
 		}
-		
+
 		// Check mode diversity
 		if achievement.ID == "mode_all" {
 			if modesCompleted, ok := stats["modes_completed"].(int); ok {
 				return modesCompleted >= achievement.Target, modesCompleted
 			}
 		}
-		
+
 		// Check code tests
 		if achievement.ID == "code_master" {
 			if codeTests, ok := stats["code_tests"].(int); ok {
 				return codeTests >= achievement.Target, codeTests
 			}
 		}
-		
+
 		// Check quote tests
 		if achievement.ID == "quote_lover" {
 			if quoteTests, ok := stats["quote_tests"].(int); ok {
 				return quoteTests >= achievement.Target, quoteTests
 			}
 		}
-		
+
 		// Check time
 		if achievement.ID == "time_1hour" || achievement.ID == "time_10hours" {
 			if totalTime, ok := stats["total_time"].(int); ok {

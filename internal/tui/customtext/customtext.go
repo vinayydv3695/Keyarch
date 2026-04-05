@@ -25,7 +25,7 @@ func New(cfg *config.Config) Model {
 	theme := config.GetThemeByName(cfg.Theme)
 	
 	ta := textarea.New()
-	ta.Placeholder = "Type or paste your custom text here...\n\nPress Tab when done, ESC to cancel"
+	ta.Placeholder = "Type or paste your custom text here...\n\nPress Ctrl+Enter when done, ESC to cancel"
 	ta.Focus()
 	ta.CharLimit = 5000
 	ta.SetWidth(80)
@@ -74,8 +74,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.done = true
 			return m, tea.Quit
 
-		case "tab", "ctrl+s":
-			// Done entering text (Tab or Ctrl+S)
+		case "ctrl+enter":
+			// Done entering text (Ctrl+Enter)
 			m.text = strings.TrimSpace(m.textarea.Value())
 			if m.text != "" {
 				m.done = true
@@ -86,7 +86,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Pass all other keys to textarea
+	// Pass all other keys to textarea (including Tab, Enter, Space, etc.)
 	m.textarea, cmd = m.textarea.Update(msg)
 	return m, cmd
 }
@@ -103,7 +103,7 @@ func (m Model) View() string {
 	s += "\n\n"
 
 	// Instructions
-	instructions := m.styles.Muted.Render("Tab: Start test • ESC: Cancel • Ctrl+C: Quit")
+	instructions := m.styles.Muted.Render("Ctrl+Enter: Start test • ESC: Cancel • Ctrl+C: Quit")
 	s += "\n" + instructions
 
 	return s

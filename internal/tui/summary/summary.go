@@ -28,6 +28,7 @@ type Model struct {
 	newAchievements     []achievements.Achievement
 	completedGoals      []goals.Goal
 	achievementsChecked bool
+	showDetailedStats   bool // Toggle between simple and detailed view
 }
 
 func New(eng *engine.Engine, cfg *config.Config, db *storage.DB) Model {
@@ -237,7 +238,7 @@ func (m *Model) checkAchievements() {
 	// Add mode-specific stats
 	statsMap["code_tests"] = modeStats["code"]
 	statsMap["quote_tests"] = modeStats["quote"]
-	
+
 	// Count unique modes completed
 	modesCompleted := 0
 	for _, count := range modeStats {
@@ -278,7 +279,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			os.Exit(0)
 			return m, tea.Quit
-			
+
 		case "q":
 			m.done = true
 			return m, tea.Quit
@@ -289,9 +290,35 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.done = true
 			return m, tea.Quit
 
-		case "enter", "esc", " ":
+		case "h":
+			// Go home to menu
 			m.done = true
 			return m, tea.Quit
+
+		case "s":
+			// Toggle detailed stats view
+			m.showDetailedStats = !m.showDetailedStats
+			return m, nil
+
+		case "esc":
+			if m.showDetailedStats {
+				// Go back to simple view
+				m.showDetailedStats = false
+				return m, nil
+			}
+			// Otherwise go home
+			m.done = true
+			return m, tea.Quit
+
+		case "enter", " ":
+			if !m.showDetailedStats {
+				// From simple view, go home
+				m.done = true
+				return m, tea.Quit
+			}
+			// From detailed view, do nothing or go back to simple
+			m.showDetailedStats = false
+			return m, nil
 		}
 	}
 
@@ -303,7 +330,71 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
-	s := components.HeaderWithWidth("Test Complete!", "Here are your results", m.styles, m.width)
+	// Show simple completion view by default
+	if !m.showDetailedStats {
+		return m.renderSimpleView()
+	}
+
+	// Show detailed stats view
+	return m.renderDetailedView()
+}
+
+func (m Model) renderSimpleView() string {
+	// Calculate stats
+	wpm := m.engine.GetWPM()
+	accuracy := m.engine.GetAccuracy()
+	elapsed := int(m.engine.GetElapsedTime())
+
+	// Build the completion box content
+	content := ""
+	content += m.styles.Title.Render("Test Complete!") + "\n\n"
+
+	// Large WPM display
+	content += m.styles.Title.Copy().Bold(true).Render(fmt.Sprintf("%.0f WPM", wpm)) + "\n"
+	content += m.styles.Subtitle.Render(fmt.Sprintf("%.1f%% Accuracy", accuracy)) + "\n"
+	content += m.styles.Subtitle.Render(fmt.Sprintf("%d seconds", elapsed)) + "\n\n"
+
+	// Options
+	content += m.styles.Accent.Render("[R] Retry    [H] Home") + "\n"
+	content += m.styles.Accent.Render("[S] Stats    [Q] Quit") + "\n"
+
+	// Center the box
+	box := m.styles.RenderBox(content)
+
+	// Add some vertical spacing to center it
+	s := "\n\n\n"
+	s += box
+	s += "\n\n"
+
+	// Show new achievements if any
+	if len(m.newAchievements) > 0 {
+		achievementInfo := m.styles.Accent.Render("New Achievements!") + " "
+		for i, ach := range m.newAchievements {
+			if i > 0 {
+				achievementInfo += ", "
+			}
+			achievementInfo += fmt.Sprintf("%s %s", ach.Icon, ach.Name)
+		}
+		s += m.styles.Muted.Render(achievementInfo) + "\n"
+	}
+
+	// Show completed goals if any
+	if len(m.completedGoals) > 0 {
+		goalInfo := m.styles.Accent.Render("Goals Completed!") + " "
+		for i, goal := range m.completedGoals {
+			if i > 0 {
+				goalInfo += ", "
+			}
+			goalInfo += goal.Name
+		}
+		s += m.styles.Muted.Render(goalInfo) + "\n"
+	}
+
+	return s
+}
+
+func (m Model) renderDetailedView() string {
+	s := components.HeaderWithWidth("Detailed Statistics", "Full test results and analysis", m.styles, m.width)
 	s += "\n\n"
 
 	// Main stats
@@ -324,7 +415,7 @@ func (m Model) View() string {
 
 	// New achievements unlocked
 	if len(m.newAchievements) > 0 {
-		achievementInfo := m.styles.Title.Render("🎉 New Achievements Unlocked!") + "\n\n"
+		achievementInfo := m.styles.Title.Render("New Achievements Unlocked!") + "\n\n"
 		for _, ach := range m.newAchievements {
 			achievementInfo += fmt.Sprintf("  %s %s\n", ach.Icon, m.styles.Accent.Render(ach.Name))
 			achievementInfo += fmt.Sprintf("     %s\n", m.styles.Muted.Render(ach.Description))
@@ -335,9 +426,9 @@ func (m Model) View() string {
 
 	// Completed goals
 	if len(m.completedGoals) > 0 {
-		goalInfo := m.styles.Title.Render("✅ Goals Completed!") + "\n\n"
+		goalInfo := m.styles.Title.Render("Goals Completed!") + "\n\n"
 		for _, goal := range m.completedGoals {
-			goalInfo += fmt.Sprintf("  %s %s\n", "🎯", m.styles.Accent.Render(goal.Name))
+			goalInfo += fmt.Sprintf("  * %s\n", m.styles.Accent.Render(goal.Name))
 		}
 		s += m.styles.RenderBox(goalInfo)
 		s += "\n"
@@ -375,20 +466,20 @@ func (m Model) View() string {
 	var msg string
 	switch {
 	case wpm >= 100:
-		msg = "🔥 Incredible! You're a typing master!"
+		msg = "Incredible! You're a typing master!"
 	case wpm >= 80:
-		msg = "⚡ Excellent! Very fast typing!"
+		msg = "Excellent! Very fast typing!"
 	case wpm >= 60:
-		msg = "👍 Great job! Above average!"
+		msg = "Great job! Above average!"
 	case wpm >= 40:
-		msg = "✓ Good work! Keep practicing!"
+		msg = "Good work! Keep practicing!"
 	default:
-		msg = "💪 Keep practicing to improve!"
+		msg = "Keep practicing to improve!"
 	}
 
 	s += "\n" + m.styles.Subtitle.Render(msg) + "\n"
 
-	s += components.Footer("R: Replay • Enter: Menu • Ctrl+C: Quit", m.styles)
+	s += components.Footer("ESC: Back • R: Replay • H: Home • Q: Quit", m.styles)
 
 	return s
 }

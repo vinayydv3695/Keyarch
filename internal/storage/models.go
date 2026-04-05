@@ -19,10 +19,10 @@ type TestResult struct {
 
 // KeyStats represents statistics for individual keys
 type KeyStats struct {
-	Key        string `json:"key"`
-	Correct    int    `json:"correct"`
-	Incorrect  int    `json:"incorrect"`
-	Accuracy   float64 `json:"accuracy"`
+	Key       string  `json:"key"`
+	Correct   int     `json:"correct"`
+	Incorrect int     `json:"incorrect"`
+	Accuracy  float64 `json:"accuracy"`
 }
 
 // UserStats represents aggregated user statistics
@@ -52,4 +52,21 @@ type GoalRecord struct {
 	Completed bool      `json:"completed"`
 	StartDate time.Time `json:"start_date"`
 	EndDate   time.Time `json:"end_date"`
+}
+
+// WeakKeyRecord represents aggregated statistics for a weak key
+type WeakKeyRecord struct {
+	Key       string  `json:"key"`
+	Correct   int     `json:"correct"`
+	Incorrect int     `json:"incorrect"`
+	Accuracy  float64 `json:"accuracy"`
+	Total     int     `json:"total"`
+}
+
+// ProgressHistory represents historical progress data
+type ProgressHistory struct {
+	Date        time.Time `json:"date"`
+	AvgWPM      float64   `json:"avg_wpm"`
+	AvgAccuracy float64   `json:"avg_accuracy"`
+	TestCount   int       `json:"test_count"`
 }

@@ -10,25 +10,31 @@ import (
 
 // Styles holds all component styles
 type Styles struct {
-	Theme       config.Theme
-	Title       lipgloss.Style
-	Subtitle    lipgloss.Style
-	MenuItem    lipgloss.Style
-	ActiveItem  lipgloss.Style
-	Stats       lipgloss.Style
-	StatValue   lipgloss.Style
-	Border      lipgloss.Style
-	Help        lipgloss.Style
-	Correct     lipgloss.Style
-	Incorrect   lipgloss.Style
-	Cursor      lipgloss.Style
-	Pending     lipgloss.Style
-	ProgressBar lipgloss.Style
+	Theme        config.Theme
+	Title        lipgloss.Style
+	Subtitle     lipgloss.Style
+	MenuItem     lipgloss.Style
+	ActiveItem   lipgloss.Style
+	Stats        lipgloss.Style
+	StatValue    lipgloss.Style
+	Border       lipgloss.Style
+	Help         lipgloss.Style
+	Correct      lipgloss.Style
+	Incorrect    lipgloss.Style
+	Cursor       lipgloss.Style
+	CursorHidden lipgloss.Style
+	Pending      lipgloss.Style
+	ProgressBar  lipgloss.Style
+	// Big ASCII text styles (for zoomed focus mode)
+	TextCorrect lipgloss.Style
+	TextError   lipgloss.Style
+	TextPending lipgloss.Style
+	CursorBlink lipgloss.Style
 	// Convenience color styles
-	Primary     lipgloss.Style
-	Muted       lipgloss.Style
-	Success     lipgloss.Style
-	Accent      lipgloss.Style
+	Primary lipgloss.Style
+	Muted   lipgloss.Style
+	Success lipgloss.Style
+	Accent  lipgloss.Style
 }
 
 // NewStyles creates a new style set with the given theme
@@ -71,13 +77,28 @@ func NewStyles(theme config.Theme) *Styles {
 			Foreground(theme.Incorrect).
 			Background(lipgloss.Color("#3a0000")),
 		Cursor: lipgloss.NewStyle().
-			Foreground(theme.Cursor).
+			Foreground(theme.Background).
 			Background(theme.Cursor).
-			Underline(true),
+			Bold(true),
+		CursorHidden: lipgloss.NewStyle().
+			Foreground(theme.Muted),
 		Pending: lipgloss.NewStyle().
 			Foreground(theme.Muted),
 		ProgressBar: lipgloss.NewStyle().
 			Foreground(theme.Success),
+		// Big ASCII text styles (for zoomed focus mode)
+		TextCorrect: lipgloss.NewStyle().
+			Foreground(theme.Correct).
+			Bold(true),
+		TextError: lipgloss.NewStyle().
+			Foreground(theme.Incorrect).
+			Bold(true),
+		TextPending: lipgloss.NewStyle().
+			Foreground(theme.Muted),
+		CursorBlink: lipgloss.NewStyle().
+			Foreground(theme.Background).
+			Background(theme.Cursor).
+			Bold(true),
 		// Convenience color styles
 		Primary: lipgloss.NewStyle().
 			Foreground(theme.Primary),
@@ -146,7 +167,7 @@ func (s *Styles) RenderProgressBar(progress float64, width int) string {
 }
 
 // RenderTypingText renders the typing test text with highlighting
-func (s *Styles) RenderTypingText(target string, userInput string, cursorPos int) string {
+func (s *Styles) RenderTypingText(target string, userInput string, cursorPos int, cursorVisible bool) string {
 	// Pre-allocate builder with estimated capacity
 	var result strings.Builder
 	result.Grow(len(target) * 20) // Account for ANSI codes
@@ -162,8 +183,12 @@ func (s *Styles) RenderTypingText(target string, userInput string, cursorPos int
 				result.WriteString(s.Incorrect.Render(charStr))
 			}
 		} else if i == cursorPos {
-			// Cursor position
-			result.WriteString(s.Cursor.Render(charStr))
+			// Cursor position - use block cursor or hidden style
+			if cursorVisible {
+				result.WriteString(s.Cursor.Render(charStr))
+			} else {
+				result.WriteString(s.CursorHidden.Render(charStr))
+			}
 		} else {
 			// Not yet typed
 			result.WriteString(s.Pending.Render(charStr))
@@ -171,6 +196,145 @@ func (s *Styles) RenderTypingText(target string, userInput string, cursorPos int
 	}
 
 	return result.String()
+}
+
+// RenderTypingTextFocused renders only 2 lines: current line + 1 upcoming (hides completed)
+func (s *Styles) RenderTypingTextFocused(target string, userInput string, cursorPos int, cursorVisible bool, maxWidth int) string {
+	if maxWidth <= 0 {
+		maxWidth = 40
+	}
+
+	// Split text into lines based on wrapping
+	lines := s.splitIntoLines(target, maxWidth)
+
+	// Find which line the cursor is on
+	currentLineIdx := s.FindLineForPosition(target, cursorPos, maxWidth)
+
+	// Determine which lines to show (current + 1 upcoming = 2 lines total for focus)
+	startLine := currentLineIdx
+	endLine := currentLineIdx + 2
+	if endLine > len(lines) {
+		endLine = len(lines)
+	}
+
+	// Build the focused view
+	var result strings.Builder
+	lineStartPos := 0
+
+	for lineIdx := 0; lineIdx < len(lines); lineIdx++ {
+		lineText := lines[lineIdx]
+		lineEndPos := lineStartPos + len(lineText)
+
+		// Only render lines in the focused range
+		if lineIdx >= startLine && lineIdx < endLine {
+			// Render this line with styling
+			for i, char := range lineText {
+				charStr := string(char)
+				pos := lineStartPos + i
+
+				if pos < len(userInput) {
+					// Already typed
+					if pos < len(target) && userInput[pos] == target[pos] {
+						result.WriteString(s.Correct.Render(charStr))
+					} else {
+						result.WriteString(s.Incorrect.Render(charStr))
+					}
+				} else if pos == cursorPos {
+					// Cursor position
+					if cursorVisible {
+						result.WriteString(s.Cursor.Render(charStr))
+					} else {
+						result.WriteString(s.CursorHidden.Render(charStr))
+					}
+				} else {
+					// Not yet typed
+					result.WriteString(s.Pending.Render(charStr))
+				}
+			}
+
+			// Add newline between lines (but not after the last line)
+			if lineIdx < endLine-1 {
+				result.WriteRune('\n')
+			}
+		}
+
+		lineStartPos = lineEndPos
+	}
+
+	return result.String()
+}
+
+// splitIntoLines splits text into lines based on max width (no ANSI codes yet)
+func (s *Styles) splitIntoLines(text string, maxWidth int) []string {
+	var lines []string
+	var currentLine strings.Builder
+	visualLen := 0
+
+	for _, r := range text {
+		// Handle explicit newlines
+		if r == '\n' {
+			lines = append(lines, currentLine.String())
+			currentLine.Reset()
+			visualLen = 0
+			continue
+		}
+
+		// Wrap at max width on spaces
+		if visualLen >= maxWidth && r == ' ' {
+			lines = append(lines, currentLine.String())
+			currentLine.Reset()
+			visualLen = 0
+			continue
+		}
+
+		currentLine.WriteRune(r)
+		visualLen++
+	}
+
+	// Add the last line if there's content
+	if currentLine.Len() > 0 {
+		lines = append(lines, currentLine.String())
+	}
+
+	return lines
+}
+
+// FindLineForPosition determines which line a given position falls on
+func (s *Styles) FindLineForPosition(text string, pos int, maxWidth int) int {
+	if pos < 0 {
+		return 0
+	}
+
+	lineIdx := 0
+	visualLen := 0
+	currentPos := 0
+
+	for _, r := range text {
+		if currentPos == pos {
+			return lineIdx
+		}
+
+		// Handle explicit newlines
+		if r == '\n' {
+			lineIdx++
+			visualLen = 0
+			currentPos++
+			continue
+		}
+
+		// Wrap at max width on spaces
+		if visualLen >= maxWidth && r == ' ' {
+			lineIdx++
+			visualLen = 0
+			currentPos++
+			continue
+		}
+
+		visualLen++
+		currentPos++
+	}
+
+	return lineIdx
 }
 
 // Header renders a consistent header across screens
@@ -181,7 +345,7 @@ func Header(title, subtitle string, styles *Styles) string {
 // HeaderWithWidth renders a responsive header based on terminal width
 func HeaderWithWidth(title, subtitle string, styles *Styles, termWidth int) string {
 	var header string
-	
+
 	// Show logo only on wider terminals (> 80 cols)
 	if termWidth > 80 {
 		logo := `
@@ -197,7 +361,7 @@ func HeaderWithWidth(title, subtitle string, styles *Styles, termWidth int) stri
               ░ ░                        ░                `
 		header = styles.Title.Foreground(styles.Theme.Primary).Render(logo) + "\n\n"
 	}
-	
+
 	header += styles.RenderTitle(title) + "\n"
 	if subtitle != "" {
 		header += styles.RenderSubtitle(subtitle) + "\n"

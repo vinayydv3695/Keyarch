@@ -20,6 +20,8 @@ var menuItems = []menuItem{
 	{"Custom Text", "Practice with your own text"},
 	{"Quote Mode", "Type inspiring quotes"},
 	{"Code Mode", "Practice programming"},
+	{"Training", "Practice weak keys and lessons"},
+	{"Word Lists", "Use custom word lists"},
 	{"Statistics", "View your progress"},
 	{"Progress", "Goals & Achievements"},
 	{"Themes", "Change color theme"},
@@ -61,7 +63,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			os.Exit(0)
 			return m, tea.Quit
-			
+
 		case "q":
 			m.selected = "quit"
 			return m, tea.Quit

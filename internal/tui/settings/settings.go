@@ -9,19 +9,12 @@ import (
 )
 
 type Model struct {
-	styles   *components.Styles
-	cfg      *config.Config
-	cursor   int
-	width    int
-	height   int
-	done     bool
-}
-
-type setting struct {
-	name  string
-	desc  string
-	key   string
-	value func(*config.Config) string
+	styles *components.Styles
+	cfg    *config.Config
+	cursor int
+	width  int
+	height int
+	done   bool
 }
 
 func New(cfg *config.Config) Model {
@@ -55,7 +48,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "down", "j":
-			if m.cursor < 2 { // 3 settings (0-2)
+			if m.cursor < 3 { // 4 settings (0-3)
 				m.cursor++
 			}
 
@@ -66,9 +59,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cfg.Sound = !m.cfg.Sound
 				m.cfg.Save()
 			case 1:
-				m.cfg.BlindMode = !m.cfg.BlindMode
+				// Cycle through sound profiles
+				m.cycleSoundProfile()
 				m.cfg.Save()
 			case 2:
+				m.cfg.BlindMode = !m.cfg.BlindMode
+				m.cfg.Save()
+			case 3:
 				m.done = true
 				return m, tea.Quit
 			}
@@ -80,6 +77,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m *Model) cycleSoundProfile() {
+	switch m.cfg.SoundProfile {
+	case config.SoundProfileOff:
+		m.cfg.SoundProfile = config.SoundProfileSubtle
+	case config.SoundProfileSubtle:
+		m.cfg.SoundProfile = config.SoundProfileMechanical
+	case config.SoundProfileMechanical:
+		m.cfg.SoundProfile = config.SoundProfileOff
+	default:
+		m.cfg.SoundProfile = config.SoundProfileSubtle
+	}
 }
 
 func (m Model) View() string {
@@ -95,13 +105,27 @@ func (m Model) View() string {
 	if m.cfg.Sound {
 		soundValue = "ON"
 	}
-	soundDesc := "Enable keystroke and notification sounds"
+	soundDesc := "Enable sound effects during typing"
 	if m.cursor == 0 {
-		s += m.styles.ActiveItem.Render("▸ Sound Effects: "+soundValue) + "\n"
+		s += m.styles.ActiveItem.Render("> Sound Effects: "+soundValue) + "\n"
 		s += "  " + m.styles.Muted.Render(soundDesc) + "\n\n"
 	} else {
 		s += m.styles.MenuItem.Render("  Sound Effects: "+soundValue) + "\n"
 		s += "  " + m.styles.Muted.Render(soundDesc) + "\n\n"
+	}
+
+	// Sound profile setting
+	profileValue := string(m.cfg.SoundProfile)
+	if profileValue == "" {
+		profileValue = "subtle"
+	}
+	profileDesc := "Sound style: off, subtle, or mechanical"
+	if m.cursor == 1 {
+		s += m.styles.ActiveItem.Render("> Sound Profile: "+profileValue) + "\n"
+		s += "  " + m.styles.Muted.Render(profileDesc) + "\n\n"
+	} else {
+		s += m.styles.MenuItem.Render("  Sound Profile: "+profileValue) + "\n"
+		s += "  " + m.styles.Muted.Render(profileDesc) + "\n\n"
 	}
 
 	// Blind mode setting
@@ -110,8 +134,8 @@ func (m Model) View() string {
 		blindValue = "ON"
 	}
 	blindDesc := "Hide WPM and stats during typing (hardcore mode)"
-	if m.cursor == 1 {
-		s += m.styles.ActiveItem.Render("▸ Blind Mode: "+blindValue) + "\n"
+	if m.cursor == 2 {
+		s += m.styles.ActiveItem.Render("> Blind Mode: "+blindValue) + "\n"
 		s += "  " + m.styles.Muted.Render(blindDesc) + "\n\n"
 	} else {
 		s += m.styles.MenuItem.Render("  Blind Mode: "+blindValue) + "\n"
@@ -119,14 +143,14 @@ func (m Model) View() string {
 	}
 
 	// Back option
-	if m.cursor == 2 {
-		s += m.styles.ActiveItem.Render("▸ ← Back to Menu") + "\n"
+	if m.cursor == 3 {
+		s += m.styles.ActiveItem.Render("> Back to Menu") + "\n"
 	} else {
-		s += m.styles.MenuItem.Render("  ← Back to Menu") + "\n"
+		s += m.styles.MenuItem.Render("  Back to Menu") + "\n"
 	}
 
 	s += "\n"
-	s += components.Footer("↑/↓: Navigate • Enter/Space: Toggle • ESC: Back", m.styles)
+	s += components.Footer("Up/Down: Navigate | Enter/Space: Toggle | ESC: Back", m.styles)
 
 	return s
 }

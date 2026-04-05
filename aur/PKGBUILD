@@ -1,0 +1,19 @@
+# Maintainer: katsura-kotaro <katsura-kotaro@aur>
+pkgname=keyarch-bin
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Feature-rich TUI typing test with sound, training modes, and progress tracking"
+arch=('x86_64' 'aarch64')
+url="https://github.com/vinayydv3695/keyarch"
+license=('MIT')
+depends=('glibc')
+provides=('keyarch')
+conflicts=('keyarch')
+source_x86_64=("keyarch-${pkgver}-x86_64::https://github.com/vinayydv3695/keyarch/releases/download/v${pkgver}/keyarch-linux-amd64")
+source_aarch64=("keyarch-${pkgver}-aarch64::https://github.com/vinayydv3695/keyarch/releases/download/v${pkgver}/keyarch-linux-arm64")
+sha256sums_x86_64=('SKIP')
+sha256sums_aarch64=('SKIP')
+
+package() {
+    install -Dm755 "${srcdir}/keyarch-${pkgver}-${CARCH}" "${pkgdir}/usr/bin/keyarch"
+}

@@ -1,8 +1,8 @@
 package goals
 
 import (
-	"time"
 	"github.com/vinayydv3695/keyarch/internal/storage"
+	"time"
 )
 
 // Goal represents a daily/weekly goal
@@ -10,10 +10,10 @@ type Goal struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
-	Type        string    `json:"type"`        // daily, weekly, custom
-	Target      float64   `json:"target"`      // target value
-	Current     float64   `json:"current"`     // current progress
-	Unit        string    `json:"unit"`        // tests, wpm, minutes
+	Type        string    `json:"type"`    // daily, weekly, custom
+	Target      float64   `json:"target"`  // target value
+	Current     float64   `json:"current"` // current progress
+	Unit        string    `json:"unit"`    // tests, wpm, minutes
 	Icon        string    `json:"icon"`
 	StartDate   time.Time `json:"start_date"`
 	EndDate     time.Time `json:"end_date"`
@@ -35,7 +35,7 @@ func DefaultDailyGoals() []Goal {
 			Target:      5,
 			Current:     0,
 			Unit:        "tests",
-			Icon:        "🎯",
+			Icon:        ">",
 			StartDate:   today,
 			EndDate:     tomorrow,
 			Active:      true,
@@ -48,7 +48,7 @@ func DefaultDailyGoals() []Goal {
 			Target:      50,
 			Current:     0,
 			Unit:        "wpm",
-			Icon:        "⚡",
+			Icon:        ">>",
 			StartDate:   today,
 			EndDate:     tomorrow,
 			Active:      true,
@@ -61,7 +61,7 @@ func DefaultDailyGoals() []Goal {
 			Target:      95,
 			Current:     0,
 			Unit:        "percent",
-			Icon:        "🎯",
+			Icon:        ">>>",
 			StartDate:   today,
 			EndDate:     tomorrow,
 			Active:      true,
@@ -89,7 +89,7 @@ func DefaultWeeklyGoals() []Goal {
 			Target:      25,
 			Current:     0,
 			Unit:        "tests",
-			Icon:        "📚",
+			Icon:        "[W]",
 			StartDate:   startOfWeek,
 			EndDate:     endOfWeek,
 			Active:      true,
@@ -102,7 +102,7 @@ func DefaultWeeklyGoals() []Goal {
 			Target:      1800, // 30 minutes in seconds
 			Current:     0,
 			Unit:        "seconds",
-			Icon:        "⏱️",
+			Icon:        "[T]",
 			StartDate:   startOfWeek,
 			EndDate:     endOfWeek,
 			Active:      true,
@@ -115,7 +115,7 @@ func DefaultWeeklyGoals() []Goal {
 			Target:      7,
 			Current:     0,
 			Unit:        "days",
-			Icon:        "🔥",
+			Icon:        "[S]",
 			StartDate:   startOfWeek,
 			EndDate:     endOfWeek,
 			Active:      true,
@@ -185,7 +185,7 @@ func ResetWeeklyGoals(goals []Goal) []Goal {
 		weekday = 7
 	}
 	startOfWeek := now.AddDate(0, 0, -(weekday - 1)).Truncate(24 * time.Hour)
-	
+
 	var activeGoals []Goal
 
 	for _, goal := range goals {

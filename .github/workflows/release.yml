@@ -1,0 +1,205 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}-${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            ext: ''
+          - os: linux
+            arch: arm64
+            ext: ''
+          - os: windows
+            arch: amd64
+            ext: '.exe'
+          - os: darwin
+            arch: amd64
+            ext: ''
+          - os: darwin
+            arch: arm64
+            ext: ''
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p dist
+          go build -ldflags="-s -w -X main.Version=${{ github.ref_name }}" -o dist/keyarch-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }} ./cmd/keyarch
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyarch-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/keyarch-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          
+          # Move and rename binaries
+          for dir in artifacts/*/; do
+            for file in "$dir"*; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                cp "$file" "release/$filename"
+              fi
+            done
+          done
+          
+          # Copy install scripts
+          cp scripts/install.sh release/
+          cp scripts/install.ps1 release/
+          
+          # Generate checksums
+          cd release
+          sha256sum * > checksums.txt
+          cd ..
+          
+          ls -la release/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-aur:
+    name: Update AUR Package
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$AUR_SSH_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+
+      - name: Clone AUR repo
+        run: |
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/aur" git clone ssh://aur@aur.archlinux.org/keyarch-bin.git aur-repo || {
+            mkdir -p aur-repo
+            cd aur-repo
+            git init
+            GIT_SSH_COMMAND="ssh -i ~/.ssh/aur" git remote add origin ssh://aur@aur.archlinux.org/keyarch-bin.git
+          }
+
+      - name: Update PKGBUILD
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"  # Remove 'v' prefix
+          
+          # Download checksums
+          curl -sL "https://github.com/vinayydv3695/keyarch/releases/download/${{ github.ref_name }}/checksums.txt" -o checksums.txt
+          
+          # Get SHA256 for linux-amd64
+          SHA256=$(grep "keyarch-linux-amd64" checksums.txt | cut -d' ' -f1)
+          SHA256_ARM64=$(grep "keyarch-linux-arm64" checksums.txt | cut -d' ' -f1)
+          
+          # Generate PKGBUILD
+          cat > aur-repo/PKGBUILD << EOF
+          # Maintainer: katsura-kotaro <katsura-kotaro@aur>
+          pkgname=keyarch-bin
+          pkgver=${VERSION}
+          pkgrel=1
+          pkgdesc="Feature-rich TUI typing test with sound, training modes, and progress tracking"
+          arch=('x86_64' 'aarch64')
+          url="https://github.com/vinayydv3695/keyarch"
+          license=('MIT')
+          depends=('glibc')
+          provides=('keyarch')
+          conflicts=('keyarch')
+          source_x86_64=("keyarch-\${pkgver}-x86_64::https://github.com/vinayydv3695/keyarch/releases/download/v\${pkgver}/keyarch-linux-amd64")
+          source_aarch64=("keyarch-\${pkgver}-aarch64::https://github.com/vinayydv3695/keyarch/releases/download/v\${pkgver}/keyarch-linux-arm64")
+          sha256sums_x86_64=('${SHA256}')
+          sha256sums_aarch64=('${SHA256_ARM64}')
+          
+          package() {
+              install -Dm755 "\${srcdir}/keyarch-\${pkgver}-\${CARCH}" "\${pkgdir}/usr/bin/keyarch"
+          }
+          EOF
+
+      - name: Generate .SRCINFO
+        run: |
+          cd aur-repo
+          # Generate .SRCINFO manually since makepkg isn't available
+          cat > .SRCINFO << 'SRCINFO_EOF'
+          pkgbase = keyarch-bin
+          	pkgdesc = Feature-rich TUI typing test with sound, training modes, and progress tracking
+          	pkgver = ${VERSION}
+          	pkgrel = 1
+          	url = https://github.com/vinayydv3695/keyarch
+          	arch = x86_64
+          	arch = aarch64
+          	license = MIT
+          	depends = glibc
+          	provides = keyarch
+          	conflicts = keyarch
+          	source_x86_64 = keyarch-${VERSION}-x86_64::https://github.com/vinayydv3695/keyarch/releases/download/v${VERSION}/keyarch-linux-amd64
+          	sha256sums_x86_64 = ${SHA256}
+          	source_aarch64 = keyarch-${VERSION}-aarch64::https://github.com/vinayydv3695/keyarch/releases/download/v${VERSION}/keyarch-linux-arm64
+          	sha256sums_aarch64 = ${SHA256_ARM64}
+          
+          pkgname = keyarch-bin
+          SRCINFO_EOF
+          
+          # Replace variables
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          sed -i "s/\${VERSION}/${VERSION}/g" .SRCINFO
+          sed -i "s/\${SHA256}/${SHA256}/g" .SRCINFO
+          sed -i "s/\${SHA256_ARM64}/${SHA256_ARM64}/g" .SRCINFO
+
+      - name: Push to AUR
+        run: |
+          cd aur-repo
+          git config user.name "katsura-kotaro"
+          git config user.email "katsura-kotaro@users.noreply.github.com"
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update to ${{ github.ref_name }}" || echo "No changes to commit"
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/aur" git push origin master || GIT_SSH_COMMAND="ssh -i ~/.ssh/aur" git push origin HEAD:master
